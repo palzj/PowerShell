@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -13,7 +13,7 @@ namespace Microsoft.PowerShell.ScheduledJob
     /// parameter values.
     /// </summary>
     [Cmdlet(VerbsCommon.New, "ScheduledJobOption", DefaultParameterSetName = ScheduledJobOptionCmdletBase.OptionsParameterSet,
-        HelpUri = "http://go.microsoft.com/fwlink/?LinkID=223919")]
+        HelpUri = "https://go.microsoft.com/fwlink/?LinkID=223919")]
     [OutputType(typeof(ScheduledJobOptions))]
     public sealed class NewScheduledJobOptionCommand : ScheduledJobOptionCmdletBase
     {

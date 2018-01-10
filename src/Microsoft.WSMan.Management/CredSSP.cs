@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 using System;
 using System.IO;
@@ -36,7 +36,7 @@ namespace Microsoft.WSMan.Management
     public class WSManCredSSPCommandBase : PSCmdlet
     {
         #region Protected / Internal Data
-        
+
         internal const string Server = "Server";
         internal const string Client = "Client";
 
@@ -52,38 +52,15 @@ namespace Microsoft.WSMan.Management
         public string Role
         {
             get { return role; }
-            set { role = value; } 
+            set { role = value; }
         }
         private string role;
-
-        /*/// <summary>
-        /// Role can either "Client" or "Server".
-        /// </summary>
-        [Parameter(ParameterSetName = Client, Mandatory = true, Position = 0)]
-        public SwitchParameter ClientRole
-        {
-            get { return isClient; }
-            set { isClient = value; }
-        }
-        private bool isClient;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        [Parameter(ParameterSetName = Server, Mandatory = true, Position = 0)]
-        public SwitchParameter ServerRole
-        {
-            get { return isServer; }
-            set { isServer = value; }
-        }
-        private bool isServer;*/
-
         #endregion
 
         #region Utilities
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <returns>
         /// Returns a session object upon successful creation..otherwise
@@ -116,14 +93,14 @@ namespace Microsoft.WSMan.Management
     #region DisableWsManCredSsp
 
     /// <summary>
-    /// Disables CredSSP authentication on the client. CredSSP authentication 
-    /// enables an application to delegate the user's credentials from the client to 
-    /// the server, hence allowing the user to perform management operations that 
+    /// Disables CredSSP authentication on the client. CredSSP authentication
+    /// enables an application to delegate the user's credentials from the client to
+    /// the server, hence allowing the user to perform management operations that
     /// access a second hop
     /// </summary>
 
 
-    [Cmdlet(VerbsLifecycle.Disable, "WSManCredSSP", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=141438")]
+    [Cmdlet(VerbsLifecycle.Disable, "WSManCredSSP", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=141438")]
     [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Cred")]
     [SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "SSP")]
     public class DisableWSManCredSSPCommand : WSManCredSSPCommandBase, IDisposable
@@ -164,8 +141,7 @@ namespace Microsoft.WSMan.Management
                     return;
                 }
                 m_SessionObj.Put(helper.CredSSP_RUri, inputXml, 0);
-               
-#if !CORECLR
+
                 if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
                 {
                     this.DeleteUserDelegateSettings();
@@ -178,14 +154,6 @@ namespace Microsoft.WSMan.Management
                     thread.Start();
                     thread.Join();
                 }
-#else
-                {
-                    ThreadStart start = new ThreadStart(this.DeleteUserDelegateSettings);
-                    Thread thread = new Thread(start);
-                    thread.Start();
-                    thread.Join();
-                }
-#endif
 
                 if (!helper.ValidateCreadSSPRegistryRetry(false, null, applicationname))
                 {
@@ -237,8 +205,8 @@ namespace Microsoft.WSMan.Management
                 else
                 {
                     InvalidOperationException ex = new InvalidOperationException();
-                    ErrorRecord er = new ErrorRecord(ex, 
-                        helper.GetResourceMsgFromResourcetext("WinrmNotConfigured"), 
+                    ErrorRecord er = new ErrorRecord(ex,
+                        helper.GetResourceMsgFromResourcetext("WinrmNotConfigured"),
                         ErrorCategory.InvalidOperation, null);
                     WriteError(er);
                     return;
@@ -288,7 +256,7 @@ namespace Microsoft.WSMan.Management
             bool otherkeys = false;
             try
             {
-                
+
                 string Registry_Path_Credentials_Delegation = Registry_Path + @"\CredentialsDelegation";
                 RegistryKey Allow_Fresh_Credential_Key = rootKey.OpenSubKey(Registry_Path_Credentials_Delegation + @"\" + helper.Key_Allow_Fresh_Credentials, true);
                 if (Allow_Fresh_Credential_Key != null)
@@ -389,7 +357,7 @@ namespace Microsoft.WSMan.Management
                 DisableServerSideSettings();
             }
         }//End BeginProcessing()
-        
+
         #region IDisposable Members
 
         /// <summary>
@@ -419,19 +387,19 @@ namespace Microsoft.WSMan.Management
 
     #region EnableCredSSP
     /// <summary>
-    /// Enables CredSSP authentication on the client. CredSSP authentication enables 
-    /// an application to delegate the user's credentials from the client to the 
-    /// server, hence allowing the user to perform management operations that access 
+    /// Enables CredSSP authentication on the client. CredSSP authentication enables
+    /// an application to delegate the user's credentials from the client to the
+    /// server, hence allowing the user to perform management operations that access
     /// a second hop.
-    /// This cmdlt performs the following:
-    /// 
+    /// This cmdlet performs the following:
+    ///
     /// On the client:
     /// 1. Enables WSMan local configuration on client to enable CredSSP
-    /// 2. Sets CredSSP policy AllowFreshCredentials to wsman/Delegate. This policy 
-    /// allows delegating explicit credentials to a server when server 
+    /// 2. Sets CredSSP policy AllowFreshCredentials to wsman/Delegate. This policy
+    /// allows delegating explicit credentials to a server when server
     /// authentication is achieved via a trusted X509 certificate or Kerberos
     /// </summary>
-    [Cmdlet(VerbsLifecycle.Enable, "WSManCredSSP", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=141442")]
+    [Cmdlet(VerbsLifecycle.Enable, "WSManCredSSP", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=141442")]
     [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Cred")]
     [SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "SSP")]
     public class EnableWSManCredSSPCommand : WSManCredSSPCommandBase, IDisposable/*, IDynamicParameters*/
@@ -440,7 +408,7 @@ namespace Microsoft.WSMan.Management
 
         //private const string DelegateComputerParam = "DelegateComputer";
         //private String[] delegatecomputer;
-        //private RuntimeDefinedParameterDictionary dyanmicParameters = new RuntimeDefinedParameterDictionary();
+        //private RuntimeDefinedParameterDictionary dynamicParameters = new RuntimeDefinedParameterDictionary();
 
         #endregion
 
@@ -454,7 +422,7 @@ namespace Microsoft.WSMan.Management
         {
             get { return delegatecomputer; }
             set { delegatecomputer = value; }
-        }     
+        }
         private String[] delegatecomputer;
 
         /// <summary>
@@ -475,11 +443,11 @@ namespace Microsoft.WSMan.Management
         // folks who suggested to register the SPN with name "wsman".
         private const string applicationname = "wsman";
 
-        #region Cmdlet Overloads        
+        #region Cmdlet Overloads
 
         /// <summary>
         /// BeginProcessing method.
-        /// </summary>      
+        /// </summary>
         protected override void BeginProcessing()
         {
             //If not running elevated, then throw an "elevation required" error message.
@@ -493,8 +461,6 @@ namespace Microsoft.WSMan.Management
                 throw new InvalidOperationException(message);
             }
 #endif
-            //If not running elevated, then throw an "elevation required" error message.
-            WSManHelper.ThrowIfNotAdministrator();
 
             // DelegateComputer cannot be specified when Role is other than client
             if ((delegatecomputer != null) && !Role.Equals(Client, StringComparison.OrdinalIgnoreCase))
@@ -532,7 +498,7 @@ namespace Microsoft.WSMan.Management
 
         /*
         /// <summary>
-        /// This method returns DynamicParameters used for Enable-WSManCredSSP cmdlet. Enable-WSManCredSSP 
+        /// This method returns DynamicParameters used for Enable-WSManCredSSP cmdlet. Enable-WSManCredSSP
         /// supports -DelegateComputer parameter when -Role is client.
         /// </summary>
         /// <returns>
@@ -544,10 +510,10 @@ namespace Microsoft.WSMan.Management
             // return null if the role is not client.
             if (!Role.Equals(ClientRole, StringComparison.OrdinalIgnoreCase))
             {
-                return dyanmicParameters;
+                return dynamicParameters;
             }
 
-            // Construct attributes for the DelegateComputer paramter
+            // Construct attributes for the DelegateComputer parameter
             Collection<Attribute> delegateComputerAttributeCollection = new Collection<Attribute>();
             ParameterAttribute paramAttribute = new ParameterAttribute();
             paramAttribute.Mandatory = true;
@@ -561,16 +527,16 @@ namespace Microsoft.WSMan.Management
                 DelegateComputerParam,
                 typeof(string[]),
                 delegateComputerAttributeCollection);
-            dyanmicParameters.Add(DelegateComputerParam, delegateComputer);
+            dynamicParameters.Add(DelegateComputerParam, delegateComputer);
 
-            return dyanmicParameters;
-            
+            return dynamicParameters;
+
         } // GetDynamicParameters*/
 
         #endregion
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <exception cref="InvalidOperationException">
         /// </exception>
@@ -603,7 +569,7 @@ namespace Microsoft.WSMan.Management
                     return;
                 }
                 // Extract delegateComputer information from dynamic parameters collection
-                //RuntimeDefinedParameter delegateComputerParameter = dyanmicParameters[DelegateComputerParam];
+                //RuntimeDefinedParameter delegateComputerParameter = dynamicParameters[DelegateComputerParam];
                 //delegatecomputer = (string[])delegateComputerParameter.Value;
 
                 string newxmlcontent = @"<cfg:Auth xmlns:cfg=""http://schemas.microsoft.com/wbem/wsman/1/config/client/auth""><cfg:CredSSP>true</cfg:CredSSP></cfg:Auth>";
@@ -613,7 +579,6 @@ namespace Microsoft.WSMan.Management
                     //push the xml string with credssp enabled
                     xmldoc.LoadXml(m_SessionObj.Put(helper.CredSSP_RUri, newxmlcontent, 0));
 
-#if !CORECLR // No ApartmentState In CoreCLR
                     // set the Registry using GroupPolicyObject
                     if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
                     {
@@ -627,14 +592,6 @@ namespace Microsoft.WSMan.Management
                         thread.Start();
                         thread.Join();
                     }
-#else
-                    {
-                        ThreadStart start = new ThreadStart(this.UpdateCurrentUserRegistrySettings);
-                        Thread thread = new Thread(start);
-                        thread.Start();
-                        thread.Join();
-                    }
-#endif
 
                     if (helper.ValidateCreadSSPRegistryRetry(true, delegatecomputer, applicationname))
                     {
@@ -725,7 +682,7 @@ namespace Microsoft.WSMan.Management
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         private void UpdateCurrentUserRegistrySettings()
         {
@@ -750,7 +707,7 @@ namespace Microsoft.WSMan.Management
         }
 
         /// <summary>
-        /// Updates the grouppolicy registry settings 
+        /// Updates the grouppolicy registry settings
         /// </summary>
         /// <param name="applicationname"></param>
         /// <param name="delegatestring"></param>
@@ -813,7 +770,7 @@ namespace Microsoft.WSMan.Management
             }
 
         }
-       
+
         #region IDisposable Members
 
         /// <summary>
@@ -844,21 +801,21 @@ namespace Microsoft.WSMan.Management
     #region Get-CredSSP
 
     /// <summary>
-    /// Gets the CredSSP related configuration on the client. CredSSP authentication 
-    /// enables an application to delegate the user's credentials from the client to 
-    /// the server, hence allowing the user to perform management operations that 
+    /// Gets the CredSSP related configuration on the client. CredSSP authentication
+    /// enables an application to delegate the user's credentials from the client to
+    /// the server, hence allowing the user to perform management operations that
     /// access a second hop.
-    /// This cmdlt performs the following:
-    /// 1. Gets the configuration for WSMan policy on client to enable/disable 
+    /// This cmdlet performs the following:
+    /// 1. Gets the configuration for WSMan policy on client to enable/disable
     /// CredSSP
-    /// 2. Gets the configuration information for the CredSSP policy 
-    /// AllowFreshCredentials . This policy allows delegating explicit credentials 
-    /// to a server when server authentication is achieved via a trusted X509 
+    /// 2. Gets the configuration information for the CredSSP policy
+    /// AllowFreshCredentials . This policy allows delegating explicit credentials
+    /// to a server when server authentication is achieved via a trusted X509
     /// certificate or Kerberos
     /// </summary>
     [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Cred")]
     [SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "SSP")]
-    [Cmdlet(VerbsCommon.Get, "WSManCredSSP", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=141443")]
+    [Cmdlet(VerbsCommon.Get, "WSManCredSSP", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=141443")]
     public class GetWSManCredSSPCommand : PSCmdlet, IDisposable
     {
         # region private
@@ -931,7 +888,7 @@ namespace Microsoft.WSMan.Management
         {
             //If not running elevated, then throw an "elevation required" error message.
             WSManHelper.ThrowIfNotAdministrator();
-            
+
             helper = new WSManHelper(this);
 #if !CORECLR
             if (Environment.OSVersion.Version.Major < 6)
@@ -941,10 +898,8 @@ namespace Microsoft.WSMan.Management
                 throw new InvalidOperationException(message);
             }
 #endif
-            //If not running elevated, then throw an "elevation required" error message.
-            WSManHelper.ThrowIfNotAdministrator();
-            
-            IWSManSession m_SessionObj = null;	    
+
+            IWSManSession m_SessionObj = null;
             try
             {
                 IWSManEx wsmanObject = (IWSManEx)new WSManClass();
@@ -1059,5 +1014,5 @@ namespace Microsoft.WSMan.Management
 
 
 
-    #endregion      
+    #endregion
 }

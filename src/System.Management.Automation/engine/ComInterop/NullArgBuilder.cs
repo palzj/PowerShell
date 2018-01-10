@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 #if !SILVERLIGHT
@@ -12,7 +12,7 @@ using Microsoft.Scripting.Ast;
 namespace System.Management.Automation.ComInterop
 {
     /// <summary>
-    /// ArgBuilder which always produces null.  
+    /// ArgBuilder which always produces null.
     /// </summary>
     internal sealed class NullArgBuilder : ArgBuilder
     {

@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -12,7 +12,7 @@ namespace Microsoft.PowerShell.Commands
     /// <summary>
     /// Suspend shell, script, or runspace activity for the specified period of time.
     /// </summary>
-    [Cmdlet(VerbsLifecycle.Start, "Sleep", DefaultParameterSetName = "Seconds", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113407")]
+    [Cmdlet(VerbsLifecycle.Start, "Sleep", DefaultParameterSetName = "Seconds", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113407")]
     public sealed class StartSleepCommand : PSCmdlet, IDisposable
     {
         private bool _disposed = false;
@@ -54,6 +54,7 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         [Parameter(Mandatory = true, ParameterSetName = "Milliseconds", ValueFromPipelineByPropertyName = true)]
         [ValidateRangeAttribute(0, int.MaxValue)]
+        [Alias("ms")]
         public int Milliseconds { get; set; }
 
         #endregion
@@ -63,7 +64,7 @@ namespace Microsoft.PowerShell.Commands
         //Wait handle which is used by thread to sleep.
         private ManualResetEvent _waitHandle;
 
-        //object used for synchornizes pipeline thread and stop thread
+        //object used for synchronizes pipeline thread and stop thread
         //access to waitHandle
         private object _syncObject = new object();
 
@@ -71,7 +72,7 @@ namespace Microsoft.PowerShell.Commands
         private bool _stopping = false;
 
         /// <summary>
-        /// This method causes calling thread to sleep for 
+        /// This method causes calling thread to sleep for
         /// specified milliseconds
         /// </summary>
         private void Sleep(int milliSecondsToSleep)
@@ -85,16 +86,12 @@ namespace Microsoft.PowerShell.Commands
             }
             if (_waitHandle != null)
             {
-#if CORECLR //TODO:CORECLR bool WaitOne(int millisecondsTimeout,bool exitContext) is not available on CLR yet
-                _waitHandle.WaitOne(new TimeSpan(0, 0, 0, 0, milliSecondsToSleep));
-#else
-                _waitHandle.WaitOne(new TimeSpan(0, 0, 0, 0, milliSecondsToSleep), true);
-#endif
+                _waitHandle.WaitOne(milliSecondsToSleep, true);
             }
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected override void ProcessRecord()
         {

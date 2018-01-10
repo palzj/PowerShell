@@ -104,44 +104,6 @@ Describe "New-Item" -Tags "CI" {
         Test-Path $FullyQualifiedFile | Should Be $false
     }
 
-    It "Should create a symbolic link of a file without error" {
-        New-Item -Name $testfile -Path $tmpDirectory -ItemType file
-        Test-Path $FullyQualifiedFile | Should Be $true
-
-        New-Item -ItemType SymbolicLink -Target $FullyQualifiedFile -Name $testlink -Path $tmpDirectory
-        Test-Path $FullyQualifiedLink | Should Be $true
-
-        $fileInfo = Get-ChildItem $FullyQualifiedLink
-        $fileInfo.Target | Should Match ([regex]::Escape($FullyQualifiedFile))
-        $fileInfo.LinkType | Should Be "SymbolicLink"
-    }
-
-    It "Should create a symbolic link to a non-existing file without error" {
-        $target = Join-Path $tmpDirectory "totallyBogusFile"
-        New-Item -ItemType SymbolicLink -Target $target -Name $testlink -Path $tmpDirectory
-        Test-Path $FullyQualifiedLink | Should Be $true
-
-        $fileInfo = Get-ChildItem $FullyQualifiedLink
-        $fileInfo.Target | Should Be $target
-        Test-Path $fileInfo.Target | Should be $false
-        $fileInfo.LinkType | Should Be "SymbolicLink"
-    }
-
-    It "Should create a symbolic link from directory without error" {
-        New-Item -Name $testFolder -Path $tmpDirectory -ItemType directory
-        Test-Path $FullyQualifiedFolder | Should Be $true
-
-        New-Item -ItemType SymbolicLink -Target $FullyQualifiedFolder -Name $testlink -Path $tmpDirectory
-        Test-Path $FullyQualifiedLink | Should Be $true
-
-        $fileInfo = Get-ChildItem $FullyQualifiedLink
-        $fileInfo.Target | Should Match ([regex]::Escape($FullyQualifiedFolder))
-        $fileInfo.LinkType | Should Be "SymbolicLink"
-
-        # Remove the link explicitly to avoid broken symlink issue
-        Remove-Item $FullyQualifiedLink -Force
-    }
-
     It "Should create a hard link of a file without error" {
         New-Item -Name $testfile -Path $tmpDirectory -ItemType file
         Test-Path $FullyQualifiedFile | Should Be $true
@@ -153,5 +115,81 @@ Describe "New-Item" -Tags "CI" {
         $fileInfo.Target | Should Be $null
         $fileInfo.LinkType | Should Be "HardLink"
     }
+}
 
+# More precisely these tests require SeCreateSymbolicLinkPrivilege.
+# You can see list of priveledges with `whoami /priv`.
+# In the default windows setup, Admin user has this priveledge, but regular users don't.
+
+Describe "New-Item with links" -Tags @('CI', 'RequireAdminOnWindows') {
+    $tmpDirectory         = $TestDrive
+    $testfile             = "testfile.txt"
+    $testfolder           = "newDirectory"
+    $testlink             = "testlink"
+    $FullyQualifiedFile   = Join-Path -Path $tmpDirectory -ChildPath $testfile
+    $FullyQualifiedFolder = Join-Path -Path $tmpDirectory -ChildPath $testfolder
+    $FullyQualifiedLink   = Join-Path -Path $tmpDirectory -ChildPath $testlink
+    $SymLinkMask          = [System.IO.FileAttributes]::ReparsePoint
+    $DirLinkMask          = $SymLinkMask -bor [System.IO.FileAttributes]::Directory
+
+    BeforeEach {
+        Clean-State
+    }
+
+    It "Should create a symbolic link of a file without error" {
+        New-Item -Name $testfile -Path $tmpDirectory -ItemType file
+        Test-Path $FullyQualifiedFile | Should Be $true
+
+        New-Item -ItemType SymbolicLink -Target $FullyQualifiedFile -Name $testlink -Path $tmpDirectory
+        Test-Path $FullyQualifiedLink | Should Be $true
+
+        $fileInfo = Get-ChildItem $FullyQualifiedLink
+        $fileInfo.Target | Should Match ([regex]::Escape($FullyQualifiedFile))
+        $fileInfo.LinkType | Should Be "SymbolicLink"
+        $fileInfo.Attributes -band $DirLinkMask | Should Be $SymLinkMask
+    }
+
+    It "Should create a symbolic link to a non-existing file without error" {
+        $target = Join-Path $tmpDirectory "totallyBogusFile"
+        New-Item -ItemType SymbolicLink -Target $target -Name $testlink -Path $tmpDirectory
+        Test-Path $FullyQualifiedLink | Should Be $true
+
+        $fileInfo = Get-ChildItem $FullyQualifiedLink
+        $fileInfo.Target | Should Be $target
+        Test-Path $fileInfo.Target | Should be $false
+        $fileInfo.LinkType | Should Be "SymbolicLink"
+        $fileInfo.Attributes -band $DirLinkMask | Should Be $SymLinkMask
+    }
+
+    It "Should create a symbolic link to directory without error" {
+        New-Item -Name $testFolder -Path $tmpDirectory -ItemType directory
+        Test-Path $FullyQualifiedFolder | Should Be $true
+
+        New-Item -ItemType SymbolicLink -Target $FullyQualifiedFolder -Name $testlink -Path $tmpDirectory
+        Test-Path $FullyQualifiedLink | Should Be $true
+
+        $fileInfo = Get-Item $FullyQualifiedLink
+        $fileInfo.Target | Should Match ([regex]::Escape($FullyQualifiedFolder))
+        $fileInfo.LinkType | Should Be "SymbolicLink"
+        $fileInfo.Attributes -band $DirLinkMask | Should Be $DirLinkMask
+
+        # Remove the link explicitly to avoid broken symlink issue
+        Remove-Item $FullyQualifiedLink -Force
+    }
+
+    It "Should error correctly when failing to create a symbolic link" -Skip:($IsWindows -or $IsElevated) {
+        # This test expects that /sbin exists but is not writable by the user
+        try {
+            New-Item -ItemType SymbolicLink -Path "/sbin/powershell-test" -Target $FullyQualifiedFolder -ErrorAction Stop
+            throw "Execution OK"
+        } catch {
+            $_.FullyQualifiedErrorId | Should Be "NewItemSymbolicLinkElevationRequired,Microsoft.PowerShell.Commands.NewItemCommand"
+        }
+    }
+
+    It "New-Item -ItemType SymbolicLink should understand directory path ending with slash" {
+        $folderName = [System.IO.Path]::GetRandomFileName()            
+        $symbolicLinkPath = New-Item -ItemType SymbolicLink -Path "$tmpDirectory/$folderName/" -Value "/bar/"
+        $symbolicLinkPath | Should Not Be $null
+    }
 }

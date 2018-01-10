@@ -14,7 +14,7 @@ Set-PSReadLineOption -EditMode Emacs
 # without that option, the cursor will remain at the position it was
 # when you used up arrow, which can be useful if you forget the exact
 # string you started the search on.
-Set-PSReadLineOption -HistorySearchCursorMovesToEnd 
+Set-PSReadLineOption -HistorySearchCursorMovesToEnd
 Set-PSReadlineKeyHandler -Key UpArrow -Function HistorySearchBackward
 Set-PSReadlineKeyHandler -Key DownArrow -Function HistorySearchForward
 
@@ -156,7 +156,7 @@ Set-PSReadlineKeyHandler -Key '(','{','[' `
     $line = $null
     $cursor = $null
     [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
-    [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor - 1)        
+    [Microsoft.PowerShell.PSConsoleReadLine]::SetCursorPosition($cursor - 1)
 }
 
 Set-PSReadlineKeyHandler -Key ')',']','}' `
@@ -204,7 +204,7 @@ Set-PSReadlineKeyHandler -Key Backspace `
             }
         }
 
-        if ($toMatch -ne $null -and $line[$cursor-1] -eq $toMatch)
+        if ($null -ne $toMatch -and $line[$cursor-1] -eq $toMatch)
         {
             [Microsoft.PowerShell.PSConsoleReadLine]::Delete($cursor - 1, 2)
         }
@@ -319,7 +319,7 @@ Set-PSReadlineKeyHandler -Key "Alt+'" `
         }
     }
 
-    if ($tokenToChange -ne $null)
+    if ($null -ne $tokenToChange)
     {
         $extent = $tokenToChange.Extent
         $tokenText = $extent.Text
@@ -365,10 +365,10 @@ Set-PSReadlineKeyHandler -Key "Alt+%" `
         if ($token.TokenFlags -band [System.Management.Automation.Language.TokenFlags]::CommandName)
         {
             $alias = $ExecutionContext.InvokeCommand.GetCommand($token.Extent.Text, 'Alias')
-            if ($alias -ne $null)
+            if ($null -ne $alias)
             {
-                $resolvedCommand = $alias.ResolvedCommandName 
-                if ($resolvedCommand -ne $null)
+                $resolvedCommand = $alias.ResolvedCommandName
+                if ($null -ne $resolvedCommand)
                 {
                     $extent = $token.Extent
                     $length = $extent.EndOffset - $extent.StartOffset
@@ -406,10 +406,10 @@ Set-PSReadlineKeyHandler -Key F1 `
             $node.Extent.EndOffset -ge $cursor
         }, $true) | Select-Object -Last 1
 
-    if ($commandAst -ne $null)
+    if ($null -ne $commandAst)
     {
         $commandName = $commandAst.GetCommandName()
-        if ($commandName -ne $null)
+        if ($null -ne $commandName)
         {
             $command = $ExecutionContext.InvokeCommand.GetCommand($commandName, 'All')
             if ($command -is [System.Management.Automation.AliasInfo])
@@ -417,7 +417,7 @@ Set-PSReadlineKeyHandler -Key F1 `
                 $commandName = $command.ResolvedCommandName
             }
 
-            if ($commandName -ne $null)
+            if ($null -ne $commandName)
             {
                 Get-Help $commandName -ShowWindow
             }
@@ -465,7 +465,7 @@ Set-PSReadlineKeyHandler -Key Alt+j `
                          -ScriptBlock {
     param($key, $arg)
 
-    $global:PSReadlineMarks.GetEnumerator() | % {
+    $global:PSReadlineMarks.GetEnumerator() | ForEach-Object {
         [PSCustomObject]@{Key = $_.Key; Dir = $_.Value} } |
         Format-Table -AutoSize | Out-Host
 

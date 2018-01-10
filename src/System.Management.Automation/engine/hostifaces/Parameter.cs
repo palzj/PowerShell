@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Management.Automation.Language;
@@ -49,7 +49,7 @@ namespace System.Management.Automation.Runspaces
         {
             if (name != null)
             {
-                if (name.Trim().Length == 0)
+                if (string.IsNullOrWhiteSpace(name))
                 {
                     throw PSTraceSource.NewArgumentException("name");
                 }
@@ -105,7 +105,7 @@ namespace System.Management.Automation.Runspaces
 
                 Diagnostics.Assert(name != null, "'name' variable should be initialized at this point");
                 Diagnostics.Assert(name[0].IsDash(), "first character in parameter name must be a dash");
-                Diagnostics.Assert(name.Trim().Length != 0, "Parameter name has to have some non-whitespace characters in it");
+                Diagnostics.Assert(name.Trim().Length != 1, "Parameter name has to have some non-whitespace characters in it");
             }
 
             if (internalParameter.ParameterAndArgumentSpecified)
@@ -134,7 +134,7 @@ namespace System.Management.Automation.Runspaces
 
             if (name == null)
             {
-                return CommandParameterInternal.CreateArgument(PositionUtilities.EmptyExtent, value);
+                return CommandParameterInternal.CreateArgument(value);
             }
 
             string parameterText;
@@ -142,8 +142,8 @@ namespace System.Management.Automation.Runspaces
             {
                 parameterText = forNativeCommand ? name : "-" + name;
                 return CommandParameterInternal.CreateParameterWithArgument(
-                    PositionUtilities.EmptyExtent, name, parameterText,
-                    PositionUtilities.EmptyExtent, value,
+                    /*parameterAst*/null, name, parameterText,
+                    /*argumentAst*/null, value,
                     true);
             }
 
@@ -160,7 +160,7 @@ namespace System.Management.Automation.Runspaces
             }
             Debug.Assert(endPosition > 0, "parameter name should have some non-whitespace characters in it");
 
-            // now make sure that parameterText doesn't have whitespace at the end, 
+            // now make sure that parameterText doesn't have whitespace at the end,
             parameterText = name.Substring(0, endPosition);
 
             // parameterName should contain only the actual name of the parameter (no whitespace, colons, dashes)
@@ -177,14 +177,13 @@ namespace System.Management.Automation.Runspaces
             if (!hasColon && value == null)
             {
                 // just a name
-                return CommandParameterInternal.CreateParameter(
-                    PositionUtilities.EmptyExtent, parameterName, parameterText);
+                return CommandParameterInternal.CreateParameter(parameterName, parameterText);
             }
 
             // name+value pair
             return CommandParameterInternal.CreateParameterWithArgument(
-                PositionUtilities.EmptyExtent, parameterName, parameterText,
-                PositionUtilities.EmptyExtent, value,
+                /*parameterAst*/null, parameterName, parameterText,
+                /*argumentAst*/null, value,
                 spaceAfterParameter);
         }
 
@@ -193,13 +192,13 @@ namespace System.Management.Automation.Runspaces
         #region Serialization / deserialization for remoting
 
         /// <summary>
-        /// Creates a CommandParameter object from a PSObject property bag. 
+        /// Creates a CommandParameter object from a PSObject property bag.
         /// PSObject has to be in the format returned by ToPSObjectForRemoting method.
         /// </summary>
         /// <param name="parameterAsPSObject">PSObject to rehydrate</param>
         /// <returns>
         /// CommandParameter rehydrated from a PSObject property bag
-        /// </returns>       
+        /// </returns>
         /// <exception cref="ArgumentNullException">
         /// Thrown if the PSObject is null.
         /// </exception>

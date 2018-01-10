@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Text;
@@ -84,7 +84,7 @@ namespace System.Management.Automation.Language
         /// <summary>
         /// Escapes content so that it is safe for inclusion in a string that will later be used in a variable
         /// name reference. This is only valid when used within PowerShell's curly brace naming syntax.
-        /// 
+        ///
         /// For example: '${' + EscapeVariableName('value') + '}'
         /// </summary>
         /// <param name="value">The content to be included as a variable name.</param>

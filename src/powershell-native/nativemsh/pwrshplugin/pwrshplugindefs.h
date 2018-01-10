@@ -1,9 +1,9 @@
 // ----------------------------------------------------------------------
 //
 //  Microsoft Windows NT
-//  Copyright (C) Microsoft Corporation, 2007.
+//  Copyright (c) Microsoft Corporation. All rights reserved.
 //
-//  Contents:  Headers used by pwrshplugin. 
+//  Contents:  Headers used by pwrshplugin.
 //  pwrshplugin is totally unmanaged.
 // ----------------------------------------------------------------------
 
@@ -105,7 +105,7 @@ typedef void (WINAPI *WSManPluginReceiveFuncPtr)(
     __in PVOID shellContext,
     __in_opt PVOID commandContext,
     __in_opt WSMAN_STREAM_ID_SET* streamSet
-    ); 
+    );
 
 typedef void (WINAPI *WSManPluginSignalFuncPtr)(
     __in PVOID pluginContext,
@@ -129,7 +129,7 @@ typedef struct _PwrshPluginWkr_Ptrs
     WSManPluginReceiveFuncPtr wsManPluginReceiveFuncPtr;
     WSManPluginSignalFuncPtr wsManPluginSignalFuncPtr;
     WSManPluginConnectFuncPtr wsManPluginConnectFuncPtr;
-    WSManPluginOperationShutdownFuncPtr wsmanPluingOperationShutdownFuncPtr; // This ptr is not used in this environment, but is required to keep the memory layout identical between unmanaged and managed code.
+    WSManPluginOperationShutdownFuncPtr wsmanPluginOperationShutdownFuncPtr; // This ptr is not used in this environment, but is required to keep the memory layout identical between unmanaged and managed code.
 } PwrshPluginWkr_Ptrs;
 
 class PlugInException
@@ -140,7 +140,7 @@ public:
     // the memory.
     PWSTR extendedErrorInformation;
 
-    PlugInException(DWORD msgId, __in PWSTR msg)
+    PlugInException(DWORD msgId, __in_opt PWSTR msg)
     {
         dwMessageId = msgId;
         extendedErrorInformation = msg;

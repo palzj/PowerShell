@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections;
@@ -12,11 +12,6 @@ using System.Reflection;
 using System.Security;
 using System.Threading;
 using Dbg = System.Management.Automation.Diagnostics;
-
-#if CORECLR
-// Use stub for ThreadAbortException.
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
 
 // Stops compiler from warning about unknown warnings
 #pragma warning disable 1634, 1691
@@ -181,7 +176,7 @@ namespace System.Management.Automation
         /// <summary>
         /// Creates a new job of the appropriate type given by JobDefinition passed in.
         /// </summary>
-        /// <param name="definition">JobDefiniton defining the command.</param>
+        /// <param name="definition">JobDefinition defining the command.</param>
         /// <returns>Job2 object of the appropriate type specified by the definition.</returns>
         /// <exception cref="InvalidOperationException">If JobSourceAdapter type specified
         /// in definition is not registered.</exception>
@@ -211,7 +206,6 @@ namespace System.Management.Automation
 
                 // sourceAdapter.NewJob returned unknown error.
                 _tracer.TraceException(exception);
-                CommandProcessorBase.CheckForSevereException(exception);
                 throw;
             }
 #pragma warning restore 56500
@@ -257,7 +251,6 @@ namespace System.Management.Automation
 
                 // sourceAdapter.NewJob returned unknown error.
                 _tracer.TraceException(exception);
-                CommandProcessorBase.CheckForSevereException(exception);
                 throw;
             }
 #pragma warning restore 56500
@@ -300,7 +293,6 @@ namespace System.Management.Automation
 
                 // sourceAdapter.NewJob returned unknown error.
                 _tracer.TraceException(exception);
-                CommandProcessorBase.CheckForSevereException(exception);
                 throw;
             }
         }
@@ -523,7 +515,7 @@ namespace System.Management.Automation
         /// <param name="writeErrorOnException"></param>
         /// <param name="writeObject"></param>
         /// <param name="recurse"></param>
-        /// <returns>Collection of jobs that match the 
+        /// <returns>Collection of jobs that match the
         /// specified criteria.</returns>
         /// <exception cref="Exception">If cmdlet parameter is null, throws exception on error from
         /// JobSourceAdapter implementation.</exception>
@@ -607,7 +599,6 @@ namespace System.Management.Automation
 
                         // sourceAdapter.GetJobsByFilter() threw unknown exception.
                         _tracer.TraceException(exception);
-                        CommandProcessorBase.CheckForSevereException(exception);
                         WriteErrorOrWarning(writeErrorOnException, cmdlet, exception, "JobSourceAdapterGetJobsError", sourceAdapter);
                     }
 #pragma warning restore 56500
@@ -630,7 +621,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Compare sourceAdapter name with the provided source adapter type 
+        /// Compare sourceAdapter name with the provided source adapter type
         /// name list.
         /// </summary>
         /// <param name="sourceAdapter"></param>
@@ -774,7 +765,6 @@ namespace System.Management.Automation
 
                         // sourceAdapter.GetJobByInstanceId threw unknown exception.
                         _tracer.TraceException(exception);
-                        CommandProcessorBase.CheckForSevereException(exception);
 
                         WriteErrorOrWarning(writeErrorOnException, cmdlet, exception, "JobSourceAdapterGetJobByInstanceIdError", sourceAdapter);
                     }
@@ -793,8 +783,8 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Gets or creates a Job2 object with the given definition name, path 
-        /// and definition type if specified, that can be run via the StartJob() 
+        /// Gets or creates a Job2 object with the given definition name, path
+        /// and definition type if specified, that can be run via the StartJob()
         /// method.
         /// </summary>
         /// <param name="definitionName">Job definition name.</param>
@@ -849,7 +839,6 @@ namespace System.Management.Automation
                         // needs to be caught.
 
                         _tracer.TraceException(exception);
-                        CommandProcessorBase.CheckForSevereException(exception);
 
                         WriteErrorOrWarning(writeErrorOnException, cmdlet, exception, "JobSourceAdapterGetJobByInstanceIdError", sourceAdapter);
                     }
@@ -955,7 +944,6 @@ namespace System.Management.Automation
 
                         // sourceAdapter.GetJobByInstanceId() threw unknown exception.
                         _tracer.TraceException(exception);
-                        CommandProcessorBase.CheckForSevereException(exception);
                         if (throwExceptions) throw;
                         WriteErrorOrWarning(writeErrorOnException, cmdlet, exception, "JobSourceAdapterGetJobError", sourceAdapter);
                     }
@@ -979,7 +967,6 @@ namespace System.Management.Automation
                         // sourceAdapter.RemoveJob() threw unknown exception.
 
                         _tracer.TraceException(exception);
-                        CommandProcessorBase.CheckForSevereException(exception);
                         if (throwExceptions) throw;
                         WriteErrorOrWarning(writeErrorOnException, cmdlet, exception, "JobSourceAdapterRemoveJobError", sourceAdapter);
                     }

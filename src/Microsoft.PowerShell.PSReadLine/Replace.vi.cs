@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -161,7 +161,7 @@ namespace Microsoft.PowerShell
                 _singleton._lastWordDelimiter = char.MinValue;
                 _singleton.PlaceCursor();
             }
-            if (_singleton._current == _singleton._buffer.Length - 1 
+            if (_singleton._current == _singleton._buffer.Length - 1
                 && !_singleton.IsDelimiter(_singleton._lastWordDelimiter, _singleton.Options.WordDelimiters)
                 && _singleton._shouldAppend)
             {

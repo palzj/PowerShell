@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections;
@@ -16,7 +16,7 @@ namespace System.Management.Automation
     /// This is the interface between the NativeCommandProcessor and the
     /// parameter binders required to bind parameters to a minishell.
     /// </summary>
-    /// 
+    ///
     internal class MinishellParameterBinderController : NativeCommandParameterBinderController
     {
         #region ctor
@@ -25,11 +25,11 @@ namespace System.Management.Automation
         /// Initializes the parameter binder controller for
         /// the specified native command and engine context
         /// </summary>
-        /// 
+        ///
         /// <param name="command">
         /// The command that the parameters will be bound to.
         /// </param>
-        /// 
+        ///
         internal MinishellParameterBinderController(
             NativeCommand command)
             : base(command)
@@ -43,11 +43,11 @@ namespace System.Management.Automation
         /// <summary>
         /// Override of parent class which should not be used.
         /// </summary>
-        /// 
+        ///
         /// <param name="parameters">
         /// The parameters to bind.
         /// </param>
-        /// 
+        ///
         /// <remarks>
         /// For any parameters that do not have a name, they are added to the command
         /// line arguments for the command
@@ -78,24 +78,24 @@ namespace System.Management.Automation
         /// <summary>
         /// Binds the specified parameters to the native command
         /// </summary>
-        /// 
+        ///
         /// <param name="parameters">
         /// The parameters to bind.
         /// </param>
-        /// 
+        ///
         /// <param name="outputRedirected">
         /// true if minishell output is redirected.
         /// </param>
-        /// 
+        ///
         /// <param name="hostName">
-        /// name of the calling host. 
+        /// name of the calling host.
         /// </param>
-        /// 
+        ///
         /// <remarks>
         /// For any parameters that do not have a name, they are added to the command
         /// line arguments for the command
         /// </remarks>
-        /// 
+        ///
         internal Collection<CommandParameterInternal> BindParameters(Collection<CommandParameterInternal> parameters, bool outputRedirected, string hostName)
         {
             MinishellParameters seen = 0;
@@ -113,7 +113,7 @@ namespace System.Management.Automation
                     {
                         HandleSeenParameter(ref seen, MinishellParameters.Command, CommandParameter);
 
-                        // Value must be specified for -Command parameter. 
+                        // Value must be specified for -Command parameter.
                         if (i + 1 >= parameters.Count)
                         {
                             throw NewParameterBindingException(null, ErrorCategory.InvalidArgument, CommandParameter,
@@ -136,9 +136,9 @@ namespace System.Management.Automation
                         }
 
                         // Replace the parameters with -EncodedCommand <base64 encoded scriptblock>
-                        parameters[i - 1] = CommandParameterInternal.CreateParameter(parameter.ParameterExtent, EncodedCommandParameter, "-" + EncodedCommandParameter);
+                        parameters[i - 1] = CommandParameterInternal.CreateParameter(EncodedCommandParameter, "-" + EncodedCommandParameter, parameter.ParameterAst);
                         string encodedScript = StringToBase64Converter.StringToBase64String(argumentValue.ToString());
-                        parameters[i] = CommandParameterInternal.CreateArgument(scriptBlockArgument.ArgumentExtent, encodedScript);
+                        parameters[i] = CommandParameterInternal.CreateArgument(encodedScript, scriptBlockArgument.ArgumentAst);
                     }
                     else if (InputFormatParameter.StartsWith(parameterName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -157,8 +157,8 @@ namespace System.Management.Automation
                         i += 1;
                         var inputFormatArg = parameters[i];
                         inputFormat = ProcessFormatParameterValue(InputFormatParameter, inputFormatArg.ArgumentValue);
-                        parameters[i - 1] = CommandParameterInternal.CreateParameter(parameter.ParameterExtent, InputFormatParameter, "-" + InputFormatParameter);
-                        parameters[i] = CommandParameterInternal.CreateArgument(inputFormatArg.ArgumentExtent, inputFormat);
+                        parameters[i - 1] = CommandParameterInternal.CreateParameter(InputFormatParameter, "-" + InputFormatParameter, parameter.ParameterAst);
+                        parameters[i] = CommandParameterInternal.CreateArgument(inputFormat, inputFormatArg.ArgumentAst);
                     }
                     else if (OutputFormatParameter.StartsWith(parameterName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -177,8 +177,8 @@ namespace System.Management.Automation
                         i += 1;
                         var outputFormatArg = parameters[i];
                         outputFormat = ProcessFormatParameterValue(OutputFormatParameter, outputFormatArg.ArgumentValue);
-                        parameters[i - 1] = CommandParameterInternal.CreateParameter(parameter.ParameterExtent, OutputFormatParameter, "-" + OutputFormatParameter);
-                        parameters[i] = CommandParameterInternal.CreateArgument(outputFormatArg.ArgumentExtent, outputFormat);
+                        parameters[i - 1] = CommandParameterInternal.CreateParameter(OutputFormatParameter, "-" + OutputFormatParameter, parameter.ParameterAst);
+                        parameters[i] = CommandParameterInternal.CreateArgument(outputFormat, outputFormatArg.ArgumentAst);
                     }
                     else if (ArgsParameter.StartsWith(parameterName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -196,8 +196,8 @@ namespace System.Management.Automation
                         i += 1;
                         var argsArg = parameters[i];
                         var encodedArgs = ConvertArgsValueToEncodedString(argsArg.ArgumentValue);
-                        parameters[i - 1] = CommandParameterInternal.CreateParameter(parameter.ParameterExtent, EncodedArgsParameter, "-" + EncodedArgsParameter);
-                        parameters[i] = CommandParameterInternal.CreateArgument(argsArg.ArgumentExtent, encodedArgs);
+                        parameters[i - 1] = CommandParameterInternal.CreateParameter(EncodedArgsParameter, "-" + EncodedArgsParameter, parameter.ParameterAst);
+                        parameters[i] = CommandParameterInternal.CreateArgument(encodedArgs, argsArg.ArgumentAst);
                     }
                 }
                 else
@@ -212,9 +212,9 @@ namespace System.Management.Automation
                         // Replace the argument with -EncodedCommand <base64 encoded scriptblock>
                         string encodedScript = StringToBase64Converter.StringToBase64String(argumentValue.ToString());
                         parameters[i] = CommandParameterInternal.CreateParameterWithArgument(
-                            parameter.ArgumentExtent, EncodedCommandParameter, "-" + EncodedCommandParameter,
-                            parameter.ArgumentExtent, encodedScript,
-                            spaceAfterParameter: true, arrayIsSingleArgumentForNativeCommand: false);
+                            parameter.ArgumentAst, EncodedCommandParameter, "-" + EncodedCommandParameter,
+                            parameter.ArgumentAst, encodedScript,
+                            spaceAfterParameter: true);
                     }
                 }
             }
@@ -223,8 +223,8 @@ namespace System.Management.Automation
             if (inputFormat == null)
             {
                 // For minishell default input format is xml
-                parameters.Add(CommandParameterInternal.CreateParameter(PositionUtilities.EmptyExtent, InputFormatParameter, "-" + InputFormatParameter));
-                parameters.Add(CommandParameterInternal.CreateArgument(PositionUtilities.EmptyExtent, XmlFormatValue));
+                parameters.Add(CommandParameterInternal.CreateParameter(InputFormatParameter, "-" + InputFormatParameter));
+                parameters.Add(CommandParameterInternal.CreateArgument(XmlFormatValue));
                 inputFormat = XmlFormatValue;
             }
 
@@ -232,8 +232,8 @@ namespace System.Management.Automation
             {
                 // If output is redirected, output format should be xml
                 outputFormat = outputRedirected ? XmlFormatValue : TextFormatValue;
-                parameters.Add(CommandParameterInternal.CreateParameter(PositionUtilities.EmptyExtent, OutputFormatParameter, "-" + OutputFormatParameter));
-                parameters.Add(CommandParameterInternal.CreateArgument(PositionUtilities.EmptyExtent, outputFormat));
+                parameters.Add(CommandParameterInternal.CreateParameter(OutputFormatParameter, "-" + OutputFormatParameter));
+                parameters.Add(CommandParameterInternal.CreateArgument(outputFormat));
             }
 
             // Set the output and input format class variable
@@ -244,14 +244,14 @@ namespace System.Management.Automation
                 ? NativeCommandIOFormat.Xml
                 : NativeCommandIOFormat.Text;
 
-            // Note if a minishell is invoked from a non-console host, we need to 
-            // pass -nonInteractive flag. Our console host's name is "ConsoleHost". 
+            // Note if a minishell is invoked from a non-console host, we need to
+            // pass -nonInteractive flag. Our console host's name is "ConsoleHost".
             // Correct check would be see if current host has access to console and
             // pass noninteractive flag if doesn't.
             if (string.IsNullOrEmpty(hostName) || !hostName.Equals("ConsoleHost", StringComparison.OrdinalIgnoreCase))
             {
                 NonInteractive = true;
-                parameters.Insert(0, CommandParameterInternal.CreateParameter(PositionUtilities.EmptyExtent, NonInteractiveParameter, "-" + NonInteractiveParameter));
+                parameters.Insert(0, CommandParameterInternal.CreateParameter(NonInteractiveParameter, "-" + NonInteractiveParameter));
             }
 
             ((NativeCommandParameterBinder)DefaultParameterBinder).BindParameters(parameters);

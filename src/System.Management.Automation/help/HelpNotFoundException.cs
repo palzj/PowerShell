@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 #pragma warning disable 1634, 1691
@@ -9,18 +9,12 @@ using System;
 using System.Management.Automation;
 using System.Runtime.Serialization;
 using System.Reflection;
-
-#if CORECLR
-// Use stub for SerializableAttribute, SerializationInfo and ISerializable related types.
-using Microsoft.PowerShell.CoreClr.Stubs;
-#else
 using System.Security.Permissions;
-#endif
 
 namespace Microsoft.PowerShell.Commands
 {
     /// <summary>
-    /// The exception that is thrown when there is no help found for a topic. 
+    /// The exception that is thrown when there is no help found for a topic.
     /// </summary>
     [Serializable]
     public class HelpNotFoundException : SystemException, IContainsErrorRecord
@@ -64,7 +58,7 @@ namespace Microsoft.PowerShell.Commands
         {
             string errMessage = string.Format(HelpErrors.HelpNotFound, _helpTopic);
 
-            // Don't do ParentContainsErrorRecordException(this), as this causes recursion, and creates a 
+            // Don't do ParentContainsErrorRecordException(this), as this causes recursion, and creates a
             // segmentation fault on Linux
             _errorRecord = new ErrorRecord(new ParentContainsErrorRecordException(errMessage), "HelpNotFound", ErrorCategory.ResourceUnavailable, null);
             _errorRecord.ErrorDetails = new ErrorDetails(typeof(HelpNotFoundException).GetTypeInfo().Assembly, "HelpErrors", "HelpNotFound", _helpTopic);
@@ -73,7 +67,7 @@ namespace Microsoft.PowerShell.Commands
         private ErrorRecord _errorRecord;
 
         /// <summary>
-        /// Gets ErrorRecord embedded in this exception. 
+        /// Gets ErrorRecord embedded in this exception.
         /// </summary>
         /// <value>ErrorRecord instance.</value>
         public ErrorRecord ErrorRecord
@@ -115,7 +109,6 @@ namespace Microsoft.PowerShell.Commands
             }
         }
 
-#if !CORECLR
         #region Serialization
 
         /// <summary>
@@ -151,7 +144,6 @@ namespace Microsoft.PowerShell.Commands
         }
 
         #endregion Serialization
-#endif
     }
 }
 

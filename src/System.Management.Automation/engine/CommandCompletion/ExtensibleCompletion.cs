@@ -1,6 +1,6 @@
 
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections;
@@ -9,9 +9,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Management.Automation.Language;
 
-#if CORECLR
-using System.Reflection;
-#endif
 
 namespace System.Management.Automation
 {
@@ -88,13 +85,13 @@ namespace System.Management.Automation
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
-    [Cmdlet(VerbsLifecycle.Register, "ArgumentCompleter", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=528576")]
+    [Cmdlet(VerbsLifecycle.Register, "ArgumentCompleter", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=528576")]
     public class RegisterArgumentCompleterCommand : PSCmdlet
     {
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [Parameter(ParameterSetName = "NativeSet", Mandatory = true)]
         [Parameter(ParameterSetName = "PowerShellSet")]
@@ -102,26 +99,26 @@ namespace System.Management.Automation
         public string[] CommandName { get; set; }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [Parameter(ParameterSetName = "PowerShellSet", Mandatory = true)]
         public string ParameterName { get; set; }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [Parameter(Mandatory = true)]
         [AllowNull()]
         public ScriptBlock ScriptBlock { get; set; }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         [Parameter(ParameterSetName = "NativeSet")]
         public SwitchParameter Native { get; set; }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected override void EndProcessing()
         {
@@ -158,6 +155,58 @@ namespace System.Management.Automation
                 }
 
                 completerDictionary[key] = ScriptBlock;
+            }
+        }
+    }
+
+    /// <summary>
+    /// This attribute is used to specify an argument completions for a parameter of a cmdlet or function
+    /// based on string array.
+    /// <example>
+    ///     [Parameter()]
+    ///     [ArgumentCompletions("Option1","Option2","Option3")]
+    ///     public string Noun { get; set; }
+    /// </example>
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class ArgumentCompletionsAttribute : Attribute
+    {
+        private string[] _completions;
+
+        /// <summary>
+        /// Initializes a new instance of the ArgumentCompletionsAttribute class
+        /// </summary>
+        /// <param name="completions">list of complete values</param>
+        /// <exception cref="ArgumentNullException">for null arguments</exception>
+        /// <exception cref="ArgumentOutOfRangeException">for invalid arguments</exception>
+        public ArgumentCompletionsAttribute(params string[] completions)
+        {
+            if (completions == null)
+            {
+                throw PSTraceSource.NewArgumentNullException("completions");
+            }
+
+            if (completions.Length == 0)
+            {
+                throw PSTraceSource.NewArgumentOutOfRangeException("completions", completions);
+            }
+
+            _completions = completions;
+        }
+
+        /// <summary>
+        /// The function returns completions for arguments.
+        /// </summary>
+        public IEnumerable<CompletionResult> CompleteArgument(string commandName, string parameterName, string wordToComplete, CommandAst commandAst, IDictionary fakeBoundParameters)
+        {
+            var wordToCompletePattern = WildcardPattern.Get(string.IsNullOrWhiteSpace(wordToComplete) ? "*" : wordToComplete + "*", WildcardOptions.IgnoreCase);
+
+            foreach (var str in _completions)
+            {
+                if (wordToCompletePattern.IsMatch(str))
+                {
+                    yield return new CompletionResult(str, str, CompletionResultType.ParameterValue, str);
+                }
             }
         }
     }

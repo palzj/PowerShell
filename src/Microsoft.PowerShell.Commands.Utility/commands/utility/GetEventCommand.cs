@@ -1,5 +1,5 @@
 //
-//    Copyright (C) Microsoft.  All rights reserved.
+//    Copyright (c) Microsoft Corporation. All rights reserved.
 //
 
 using System;
@@ -11,7 +11,7 @@ namespace Microsoft.PowerShell.Commands
     /// <summary>
     /// Gets events from the event queue.
     /// </summary>
-    [Cmdlet(VerbsCommon.Get, "Event", DefaultParameterSetName = "BySource", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113453")]
+    [Cmdlet(VerbsCommon.Get, "Event", DefaultParameterSetName = "BySource", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113453")]
     [OutputType(typeof(PSEventArgs))]
     public class GetEventCommand : PSCmdlet
     {
@@ -21,6 +21,7 @@ namespace Microsoft.PowerShell.Commands
         /// An identifier for this event subscription
         /// </summary>
         [Parameter(Position = 0, ValueFromPipelineByPropertyName = true, ParameterSetName = "BySource")]
+        [ValidateNotNullOrEmpty()]
         public string SourceIdentifier
         {
             get

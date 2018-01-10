@@ -1,6 +1,6 @@
 //
-// Copyright (c) 2007 Microsoft Corporation. All rights reserved.
-// 
+// Copyright (c) Microsoft Corporation. All rights reserved.
+//
 
 using System;
 using System.Xml;
@@ -16,15 +16,16 @@ using System.Diagnostics.Eventing.Reader;
 using System.Security.Principal;
 using System.Resources;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 [assembly: CLSCompliant(false)]
 
 namespace Microsoft.PowerShell.Commands
 {
-    /// 
+    ///
     /// Class that implements the Get-WinEvent cmdlet.
-    /// 
-    [Cmdlet(VerbsCommon.Get, "WinEvent", DefaultParameterSetName = "GetLogSet", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=138336")]
+    ///
+    [Cmdlet(VerbsCommon.Get, "WinEvent", DefaultParameterSetName = "GetLogSet", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=138336")]
     public sealed class GetWinEventCommand : PSCmdlet
     {
         /// <summary>
@@ -356,10 +357,22 @@ namespace Microsoft.PowerShell.Commands
         private const string queryListClose = "</QueryList>";
         private const string queryTemplate = "<Query Id=\"{0}\" Path=\"{1}\"><Select Path=\"{1}\">{2}</Select></Query>";
         private const string queryOpenerTemplate = "<Query Id=\"{0}\" Path=\"{1}\"><Select Path=\"{1}\">*";
-        private const string queryCloser = "</Select></Query>";
+        private const string queryCloser = "</Query>";
+        private const string SelectCloser = "</Select>";
+        private const string suppressOpener = "<Suppress>*";
+        private const string suppressCloser = "</Suppress>";
         private const string propOpen = "[";
         private const string propClose = "]";
         private const string filePrefix = "file://";
+        private const string NamedDataTemplate = "((EventData[Data[@Name='{0}']='{1}']) or (UserData/*/{0}='{1}'))";
+        private const string DataTemplate = "(EventData/Data='{0}')";
+        private const string SystemTimePeriodTemplate = "(System/TimeCreated[@SystemTime&gt;='{0}' and @SystemTime&lt;='{1}'])";
+        private const string SystemTimeStartTemplate = "(System/TimeCreated[@SystemTime&gt;='{0}'])";
+        private const string SystemTimeEndTemplate = "(System/TimeCreated[@SystemTime&lt;='{0}'])";
+        private const string SystemLevelTemplate = "(System/Level=";
+        private const string SystemEventIDTemplate = "(System/EventID=";
+        private const string SystemSecurityTemplate = "(System/Security[@UserID='{0}'])";
+        private const string SystemKeywordsTemplate = "System[band(Keywords,{0})]";
 
         //
         // Other private members and constants
@@ -389,6 +402,7 @@ namespace Microsoft.PowerShell.Commands
         private const string hashkey_endtime_lc = "endtime";
         private const string hashkey_userid_lc = "userid";
         private const string hashkey_data_lc = "data";
+        private const string hashkey_supress_lc = "suppresshashfilter";
 
 
         /// <summary>
@@ -500,33 +514,29 @@ namespace Microsoft.PowerShell.Commands
         //
         private void ProcessGetLog()
         {
-            EventLogSession eventLogSession = CreateSession();
-
-            FindLogNamesMatchingWildcards(eventLogSession, _accumulatedLogNames);
-            if (_logNamesMatchingWildcard.Count == 0)
+            using (EventLogSession eventLogSession = CreateSession())
             {
-                return;
-            }
+                FindLogNamesMatchingWildcards(eventLogSession, _accumulatedLogNames);
+                if (_logNamesMatchingWildcard.Count == 0)
+                {
+                    return;
+                }
 
-            EventLogQuery logQuery;
-            if (_logNamesMatchingWildcard.Count > 1)
-            {
-                string query = BuildStructuredQuery(eventLogSession);
-                logQuery = new EventLogQuery(null, PathType.LogName, query);
-                logQuery.TolerateQueryErrors = true;
-            }
-            else
-            {
-                logQuery = new EventLogQuery(_logNamesMatchingWildcard[0], PathType.LogName, _filter);
-            }
-            logQuery.Session = eventLogSession;
-            logQuery.ReverseDirection = !_oldest;
+                EventLogQuery logQuery;
+                if (_logNamesMatchingWildcard.Count > 1)
+                {
+                    string query = BuildStructuredQuery(eventLogSession);
+                    logQuery = new EventLogQuery(null, PathType.LogName, query);
+                    logQuery.TolerateQueryErrors = true;
+                }
+                else
+                {
+                    logQuery = new EventLogQuery(_logNamesMatchingWildcard[0], PathType.LogName, _filter);
+                }
+                logQuery.Session = eventLogSession;
+                logQuery.ReverseDirection = !_oldest;
 
-            EventLogReader readerObj = new EventLogReader(logQuery);
-
-            if (readerObj != null)
-            {
-                ReadEvents(readerObj);
+                ReadEvents(logQuery);
             }
         }
 
@@ -536,44 +546,41 @@ namespace Microsoft.PowerShell.Commands
         //
         private void ProcessGetProvider()
         {
-            EventLogSession eventLogSession = CreateSession();
-
-            FindProvidersByLogForWildcardPatterns(eventLogSession, _providerName);
-
-            if (_providersByLogMap.Count == 0)
+            using (EventLogSession eventLogSession = CreateSession())
             {
-                //
-                // Just return: errors already written above for each unmatched provider name pattern.
-                //
-                return;
-            }
+                FindProvidersByLogForWildcardPatterns(eventLogSession, _providerName);
 
-
-            EventLogQuery logQuery = null;
-            if (_providersByLogMap.Count > 1)
-            {
-                string query = BuildStructuredQuery(eventLogSession);
-                logQuery = new EventLogQuery(null, PathType.LogName, query);
-                logQuery.TolerateQueryErrors = true;
-            }
-            else
-            {
-                //
-                // There's only one key at this point, but we need an enumerator to get to it.
-                //
-                foreach (string log in _providersByLogMap.Keys)
+                if (_providersByLogMap.Count == 0)
                 {
-                    logQuery = new EventLogQuery(log, PathType.LogName, AddProviderPredicatesToFilter(_providersByLogMap[log]));
-                    WriteVerbose(string.Format(CultureInfo.InvariantCulture, "Log {0} will be queried", log));
+                    //
+                    // Just return: errors already written above for each unmatched provider name pattern.
+                    //
+                    return;
                 }
-            }
-            logQuery.Session = eventLogSession;
-            logQuery.ReverseDirection = !_oldest; ;
 
-            EventLogReader readerObj = new EventLogReader(logQuery);
-            if (readerObj != null)
-            {
-                ReadEvents(readerObj);
+
+                EventLogQuery logQuery = null;
+                if (_providersByLogMap.Count > 1)
+                {
+                    string query = BuildStructuredQuery(eventLogSession);
+                    logQuery = new EventLogQuery(null, PathType.LogName, query);
+                    logQuery.TolerateQueryErrors = true;
+                }
+                else
+                {
+                    //
+                    // There's only one key at this point, but we need an enumerator to get to it.
+                    //
+                    foreach (string log in _providersByLogMap.Keys)
+                    {
+                        logQuery = new EventLogQuery(log, PathType.LogName, AddProviderPredicatesToFilter(_providersByLogMap[log]));
+                        WriteVerbose(string.Format(CultureInfo.InvariantCulture, "Log {0} will be queried", log));
+                    }
+                }
+                logQuery.Session = eventLogSession;
+                logQuery.ReverseDirection = !_oldest; ;
+
+                ReadEvents(logQuery);
             }
         }
 
@@ -583,66 +590,67 @@ namespace Microsoft.PowerShell.Commands
         //
         private void ProcessListLog()
         {
-            EventLogSession eventLogSession = CreateSession();
-
-            foreach (string logPattern in _listLog)
+            using (EventLogSession eventLogSession = CreateSession())
             {
-                bool bMatchFound = false;
-
-                foreach (string logName in eventLogSession.GetLogNames())
+                foreach (string logPattern in _listLog)
                 {
-                    WildcardPattern wildLogPattern = new WildcardPattern(logPattern, WildcardOptions.IgnoreCase);
+                    bool bMatchFound = false;
 
-                    if (((!WildcardPattern.ContainsWildcardCharacters(logPattern))
-                        && string.Equals(logPattern, logName, StringComparison.CurrentCultureIgnoreCase))
-                        ||
-                        (wildLogPattern.IsMatch(logName)))
+                    foreach (string logName in eventLogSession.GetLogNames())
                     {
-                        try
-                        {
-                            EventLogConfiguration logObj = new EventLogConfiguration(logName, eventLogSession);
+                        WildcardPattern wildLogPattern = new WildcardPattern(logPattern, WildcardOptions.IgnoreCase);
 
-                            //
-                            // Skip direct channels matching the wildcard unless -Force is present.
-                            //
-                            if (!Force.IsPresent &&
-                                WildcardPattern.ContainsWildcardCharacters(logPattern) &&
-                                    (logObj.LogType == EventLogType.Debug ||
-                                     logObj.LogType == EventLogType.Analytical))
+                        if (((!WildcardPattern.ContainsWildcardCharacters(logPattern))
+                            && string.Equals(logPattern, logName, StringComparison.CurrentCultureIgnoreCase))
+                            ||
+                            (wildLogPattern.IsMatch(logName)))
+                        {
+                            try
                             {
+                                EventLogConfiguration logObj = new EventLogConfiguration(logName, eventLogSession);
+
+                                //
+                                // Skip direct channels matching the wildcard unless -Force is present.
+                                //
+                                if (!Force.IsPresent &&
+                                    WildcardPattern.ContainsWildcardCharacters(logPattern) &&
+                                        (logObj.LogType == EventLogType.Debug ||
+                                        logObj.LogType == EventLogType.Analytical))
+                                {
+                                    continue;
+                                }
+
+                                EventLogInformation logInfoObj = eventLogSession.GetLogInformation(logName, PathType.LogName);
+
+                                PSObject outputObj = new PSObject(logObj);
+
+                                outputObj.Properties.Add(new PSNoteProperty("FileSize", logInfoObj.FileSize));
+                                outputObj.Properties.Add(new PSNoteProperty("IsLogFull", logInfoObj.IsLogFull));
+                                outputObj.Properties.Add(new PSNoteProperty("LastAccessTime", logInfoObj.LastAccessTime));
+                                outputObj.Properties.Add(new PSNoteProperty("LastWriteTime", logInfoObj.LastWriteTime));
+                                outputObj.Properties.Add(new PSNoteProperty("OldestRecordNumber", logInfoObj.OldestRecordNumber));
+                                outputObj.Properties.Add(new PSNoteProperty("RecordCount", logInfoObj.RecordCount));
+
+                                WriteObject(outputObj);
+                                bMatchFound = true;
+                            }
+                            catch (Exception exc)
+                            {
+                                string msg = string.Format(CultureInfo.InvariantCulture,
+                                                        _resourceMgr.GetString("LogInfoUnavailable"),
+                                                        logName, exc.Message);
+                                Exception outerExc = new Exception(msg, exc);
+                                WriteError(new ErrorRecord(outerExc, "LogInfoUnavailable", ErrorCategory.NotSpecified, null));
                                 continue;
                             }
-
-                            EventLogInformation logInfoObj = eventLogSession.GetLogInformation(logName, PathType.LogName);
-
-                            PSObject outputObj = new PSObject(logObj);
-
-                            outputObj.Properties.Add(new PSNoteProperty("FileSize", logInfoObj.FileSize));
-                            outputObj.Properties.Add(new PSNoteProperty("IsLogFull", logInfoObj.IsLogFull));
-                            outputObj.Properties.Add(new PSNoteProperty("LastAccessTime", logInfoObj.LastAccessTime));
-                            outputObj.Properties.Add(new PSNoteProperty("LastWriteTime", logInfoObj.LastWriteTime));
-                            outputObj.Properties.Add(new PSNoteProperty("OldestRecordNumber", logInfoObj.OldestRecordNumber));
-                            outputObj.Properties.Add(new PSNoteProperty("RecordCount", logInfoObj.RecordCount));
-
-                            WriteObject(outputObj);
-                            bMatchFound = true;
-                        }
-                        catch (Exception exc)
-                        {
-                            string msg = string.Format(CultureInfo.InvariantCulture,
-                                                     _resourceMgr.GetString("LogInfoUnavailable"),
-                                                     logName, exc.Message);
-                            Exception outerExc = new Exception(msg, exc);
-                            WriteError(new ErrorRecord(outerExc, "LogInfoUnavailable", ErrorCategory.NotSpecified, null));
-                            continue;
                         }
                     }
-                }
-                if (!bMatchFound)
-                {
-                    string msg = _resourceMgr.GetString("NoMatchingLogsFound");
-                    Exception exc = new Exception(string.Format(CultureInfo.InvariantCulture, msg, _computerName, logPattern));
-                    WriteError(new ErrorRecord(exc, "NoMatchingLogsFound", ErrorCategory.ObjectNotFound, null));
+                    if (!bMatchFound)
+                    {
+                        string msg = _resourceMgr.GetString("NoMatchingLogsFound");
+                        Exception exc = new Exception(string.Format(CultureInfo.InvariantCulture, msg, _computerName, logPattern));
+                        WriteError(new ErrorRecord(exc, "NoMatchingLogsFound", ErrorCategory.ObjectNotFound, null));
+                    }
                 }
             }
         }
@@ -652,45 +660,46 @@ namespace Microsoft.PowerShell.Commands
         //
         private void ProcessListProvider()
         {
-            EventLogSession eventLogSession = CreateSession();
-
-            foreach (string provPattern in _listProvider)
+            using (EventLogSession eventLogSession = CreateSession())
             {
-                bool bMatchFound = false;
-
-                foreach (string provName in eventLogSession.GetProviderNames())
+                foreach (string provPattern in _listProvider)
                 {
-                    WildcardPattern wildProvPattern = new WildcardPattern(provPattern, WildcardOptions.IgnoreCase);
+                    bool bMatchFound = false;
 
-                    if (((!WildcardPattern.ContainsWildcardCharacters(provPattern))
-                        && string.Equals(provPattern, provName, StringComparison.CurrentCultureIgnoreCase))
-                        ||
-                        (wildProvPattern.IsMatch(provName)))
+                    foreach (string provName in eventLogSession.GetProviderNames())
                     {
-                        try
+                        WildcardPattern wildProvPattern = new WildcardPattern(provPattern, WildcardOptions.IgnoreCase);
+
+                        if (((!WildcardPattern.ContainsWildcardCharacters(provPattern))
+                            && string.Equals(provPattern, provName, StringComparison.CurrentCultureIgnoreCase))
+                            ||
+                            (wildProvPattern.IsMatch(provName)))
                         {
-                            ProviderMetadata provObj = new ProviderMetadata(provName, eventLogSession, CultureInfo.CurrentCulture);
-                            WriteObject(provObj);
-                            bMatchFound = true;
-                        }
-                        catch (System.Diagnostics.Eventing.Reader.EventLogException exc)
-                        {
-                            string msg = string.Format(CultureInfo.InvariantCulture,
-                                                       _resourceMgr.GetString("ProviderMetadataUnavailable"),
-                                                       provName, exc.Message);
-                            Exception outerExc = new Exception(msg, exc);
-                            WriteError(new ErrorRecord(outerExc, "ProviderMetadataUnavailable", ErrorCategory.NotSpecified, null));
-                            continue;
+                            try
+                            {
+                                ProviderMetadata provObj = new ProviderMetadata(provName, eventLogSession, CultureInfo.CurrentCulture);
+                                WriteObject(provObj);
+                                bMatchFound = true;
+                            }
+                            catch (System.Diagnostics.Eventing.Reader.EventLogException exc)
+                            {
+                                string msg = string.Format(CultureInfo.InvariantCulture,
+                                                        _resourceMgr.GetString("ProviderMetadataUnavailable"),
+                                                        provName, exc.Message);
+                                Exception outerExc = new Exception(msg, exc);
+                                WriteError(new ErrorRecord(outerExc, "ProviderMetadataUnavailable", ErrorCategory.NotSpecified, null));
+                                continue;
+                            }
                         }
                     }
-                }
 
-                if (!bMatchFound)
-                {
-                    string msg = string.Format(CultureInfo.InvariantCulture, _resourceMgr.GetString("NoMatchingProvidersFound"),
-                                             _computerName, provPattern);
-                    Exception exc = new Exception(msg);
-                    WriteError(new ErrorRecord(exc, "NoMatchingProvidersFound", ErrorCategory.ObjectNotFound, null));
+                    if (!bMatchFound)
+                    {
+                        string msg = string.Format(CultureInfo.InvariantCulture, _resourceMgr.GetString("NoMatchingProvidersFound"),
+                                                _computerName, provPattern);
+                        Exception exc = new Exception(msg);
+                        WriteError(new ErrorRecord(exc, "NoMatchingProvidersFound", ErrorCategory.ObjectNotFound, null));
+                    }
                 }
             }
         }
@@ -700,43 +709,40 @@ namespace Microsoft.PowerShell.Commands
         //
         private void ProcessFilterXml()
         {
-            EventLogSession eventLogSession = CreateSession();
-
-            if (!Oldest.IsPresent)
+            using (EventLogSession eventLogSession = CreateSession())
             {
-                //
-                // Do minimal parsing of xmlQuery to determine if any direct channels or ETL files are in it.        
-                //
-                XmlElement root = _xmlQuery.DocumentElement;
-                XmlNodeList queryNodes = root.SelectNodes("//Query//Select");
-                foreach (XmlNode queryNode in queryNodes)
+                if (!Oldest.IsPresent)
                 {
-                    XmlAttributeCollection attribs = queryNode.Attributes;
-                    foreach (XmlAttribute attrib in attribs)
+                    //
+                    // Do minimal parsing of xmlQuery to determine if any direct channels or ETL files are in it.
+                    //
+                    XmlElement root = _xmlQuery.DocumentElement;
+                    XmlNodeList queryNodes = root.SelectNodes("//Query//Select");
+                    foreach (XmlNode queryNode in queryNodes)
                     {
-                        if (attrib.Name.Equals("Path", StringComparison.OrdinalIgnoreCase))
+                        XmlAttributeCollection attribs = queryNode.Attributes;
+                        foreach (XmlAttribute attrib in attribs)
                         {
-                            string logName = attrib.Value;
-
-                            if (logName.StartsWith(filePrefix, StringComparison.OrdinalIgnoreCase))
+                            if (attrib.Name.Equals("Path", StringComparison.OrdinalIgnoreCase))
                             {
-                                TerminateForNonEvtxFileWithoutOldest(logName);
-                            }
+                                string logName = attrib.Value;
 
-                            ValidateLogName(logName, eventLogSession);
+                                if (logName.StartsWith(filePrefix, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    TerminateForNonEvtxFileWithoutOldest(logName);
+                                }
+
+                                ValidateLogName(logName, eventLogSession);
+                            }
                         }
                     }
                 }
-            }
 
-            EventLogQuery logQuery = new EventLogQuery(null, PathType.LogName, _xmlQuery.InnerXml);
-            logQuery.Session = eventLogSession;
-            logQuery.ReverseDirection = !_oldest;
+                EventLogQuery logQuery = new EventLogQuery(null, PathType.LogName, _xmlQuery.InnerXml);
+                logQuery.Session = eventLogSession;
+                logQuery.ReverseDirection = !_oldest;
 
-            EventLogReader readerObj = new EventLogReader(logQuery);
-            if (readerObj != null)
-            {
-                ReadEvents(readerObj);
+                ReadEvents(logQuery);
             }
         }
 
@@ -746,44 +752,41 @@ namespace Microsoft.PowerShell.Commands
         //
         private void ProcessFile()
         {
-            EventLogSession eventLogSession = CreateSession();
-
-            //
-            // At this point, _path array contains paths that might have wildcards,
-            // environment variables or PS drives. Let's resolve those.        
-            //
-            for (int i = 0; i < _path.Length; i++)
+            using (EventLogSession eventLogSession = CreateSession())
             {
-                StringCollection resolvedPaths = ValidateAndResolveFilePath(_path[i]);
-                foreach (string resolvedPath in resolvedPaths)
+                //
+                // At this point, _path array contains paths that might have wildcards,
+                // environment variables or PS drives. Let's resolve those.
+                //
+                for (int i = 0; i < _path.Length; i++)
                 {
-                    _resolvedPaths.Add(resolvedPath);
-                    WriteVerbose(string.Format(CultureInfo.InvariantCulture, "Found file {0}", resolvedPath));
+                    StringCollection resolvedPaths = ValidateAndResolveFilePath(_path[i]);
+                    foreach (string resolvedPath in resolvedPaths)
+                    {
+                        _resolvedPaths.Add(resolvedPath);
+                        WriteVerbose(string.Format(CultureInfo.InvariantCulture, "Found file {0}", resolvedPath));
+                    }
                 }
-            }
 
-            EventLogQuery logQuery = null;
-            if (_resolvedPaths.Count == 0)
-            {
-                return;
-            }
-            else if (_resolvedPaths.Count > 1)
-            {
-                string query = BuildStructuredQuery(eventLogSession);
-                logQuery = new EventLogQuery(null, PathType.FilePath, query);
-                logQuery.TolerateQueryErrors = true;
-            }
-            else
-            {
-                logQuery = new EventLogQuery(_resolvedPaths[0], PathType.FilePath, _filter);
-            }
-            logQuery.Session = eventLogSession;
-            logQuery.ReverseDirection = !_oldest;
+                EventLogQuery logQuery = null;
+                if (_resolvedPaths.Count == 0)
+                {
+                    return;
+                }
+                else if (_resolvedPaths.Count > 1)
+                {
+                    string query = BuildStructuredQuery(eventLogSession);
+                    logQuery = new EventLogQuery(null, PathType.FilePath, query);
+                    logQuery.TolerateQueryErrors = true;
+                }
+                else
+                {
+                    logQuery = new EventLogQuery(_resolvedPaths[0], PathType.FilePath, _filter);
+                }
+                logQuery.Session = eventLogSession;
+                logQuery.ReverseDirection = !_oldest;
 
-            EventLogReader readerObj = new EventLogReader(logQuery);
-            if (readerObj != null)
-            {
-                ReadEvents(readerObj);
+                ReadEvents(logQuery);
             }
         }
 
@@ -794,29 +797,27 @@ namespace Microsoft.PowerShell.Commands
         {
             CheckHashTablesForNullValues();
 
-            EventLogSession eventLogSession = CreateSession();
-
-            string query = BuildStructuredQuery(eventLogSession);
-            if (query.Length == 0)
+            using (EventLogSession eventLogSession = CreateSession())
             {
-                return;
-            }
 
-            EventLogQuery logQuery = new EventLogQuery(null, PathType.FilePath, query);
-            logQuery.Session = eventLogSession;
-            logQuery.TolerateQueryErrors = true;
-            logQuery.ReverseDirection = !_oldest;
+                string query = BuildStructuredQuery(eventLogSession);
+                if (query.Length == 0)
+                {
+                    return;
+                }
 
-            EventLogReader readerObj = new EventLogReader(logQuery);
-            if (readerObj != null)
-            {
-                ReadEvents(readerObj);
+                EventLogQuery logQuery = new EventLogQuery(null, PathType.FilePath, query);
+                logQuery.Session = eventLogSession;
+                logQuery.TolerateQueryErrors = true;
+                logQuery.ReverseDirection = !_oldest;
+
+                ReadEvents(logQuery);
             }
         }
 
         //
         // CreateSession creates an EventLogSession connected to a target machine or localhost.
-        // If _credential argment is PSCredential.Empty, the session will be created for the current context.
+        // If _credential argument is PSCredential.Empty, the session will be created for the current context.
         //
         private EventLogSession CreateSession()
         {
@@ -825,7 +826,7 @@ namespace Microsoft.PowerShell.Commands
             if (_computerName == string.Empty)
             {
                 // Set _computerName to "localhost" for future error messages,
-                // but do not use it for the connection to avoid RPC overhead.            
+                // but do not use it for the connection to avoid RPC overhead.
                 _computerName = "localhost";
 
                 if (_credential == PSCredential.Empty)
@@ -860,57 +861,60 @@ namespace Microsoft.PowerShell.Commands
         //
         // ReadEvents helper.
         //
-        private void ReadEvents(EventLogReader readerObj)
+        private void ReadEvents(EventLogQuery logQuery)
         {
-            Int64 numEvents = 0;
-            EventRecord evtObj = null;
-
-            while (true)
+            using (EventLogReader readerObj = new EventLogReader(logQuery))
             {
-                try
+                Int64 numEvents = 0;
+                EventRecord evtObj = null;
+
+                while (true)
                 {
-                    evtObj = readerObj.ReadEvent();
-                }
-                catch (Exception exc)
-                {
-                    WriteError(new ErrorRecord(exc, exc.Message, ErrorCategory.NotSpecified, null));
-                    continue;
-                }
-                if (evtObj == null)
-                {
-                    break;
-                }
-                if (_maxEvents != -1 && numEvents >= _maxEvents)
-                {
-                    break;
+                    try
+                    {
+                        evtObj = readerObj.ReadEvent();
+                    }
+                    catch (Exception exc)
+                    {
+                        WriteError(new ErrorRecord(exc, exc.Message, ErrorCategory.NotSpecified, null));
+                        continue;
+                    }
+                    if (evtObj == null)
+                    {
+                        break;
+                    }
+                    if (_maxEvents != -1 && numEvents >= _maxEvents)
+                    {
+                        break;
+                    }
+
+                    PSObject outputObj = new PSObject(evtObj);
+
+                    string evtMessage = _resourceMgr.GetString("NoEventMessage");
+                    try
+                    {
+                        evtMessage = evtObj.FormatDescription();
+                    }
+                    catch (Exception exc)
+                    {
+                        WriteError(new ErrorRecord(exc, exc.Message, ErrorCategory.NotSpecified, null));
+                    }
+                    outputObj.Properties.Add(new PSNoteProperty("Message", evtMessage));
+
+
+                    //
+                    // Enumerate the object one level to get to event payload
+                    //
+                    WriteObject(outputObj, true);
+                    numEvents++;
                 }
 
-                PSObject outputObj = new PSObject(evtObj);
-
-                string evtMessage = _resourceMgr.GetString("NoEventMessage");
-                try
+                if (numEvents == 0)
                 {
-                    evtMessage = evtObj.FormatDescription();
+                    string msg = _resourceMgr.GetString("NoMatchingEventsFound");
+                    Exception exc = new Exception(msg);
+                    WriteError(new ErrorRecord(exc, "NoMatchingEventsFound", ErrorCategory.ObjectNotFound, null));
                 }
-                catch (Exception exc)
-                {
-                    WriteError(new ErrorRecord(exc, exc.Message, ErrorCategory.NotSpecified, null));
-                }
-                outputObj.Properties.Add(new PSNoteProperty("Message", evtMessage));
-
-
-                //
-                // Enumerate the object one level to get to event payload
-                //
-                WriteObject(outputObj, true);
-                numEvents++;
-            }
-
-            if (numEvents == 0)
-            {
-                string msg = _resourceMgr.GetString("NoMatchingEventsFound");
-                Exception exc = new Exception(msg);
-                WriteError(new ErrorRecord(exc, "NoMatchingEventsFound", ErrorCategory.ObjectNotFound, null));
             }
         }
 
@@ -921,7 +925,7 @@ namespace Microsoft.PowerShell.Commands
         //
         private string BuildStructuredQuery(EventLogSession eventLogSession)
         {
-            string result = "";
+            StringBuilder result = new StringBuilder();
 
             switch (ParameterSetName)
             {
@@ -933,51 +937,45 @@ namespace Microsoft.PowerShell.Commands
 
                 case "GetProviderSet":
                     {
-                        result = queryListOpen;
+                        result.Append(queryListOpen);
                         uint queryId = 0;
 
                         foreach (string log in _providersByLogMap.Keys)
                         {
                             string providerFilter = AddProviderPredicatesToFilter(_providersByLogMap[log]);
-                            string addedQuery;
-                            addedQuery = string.Format(CultureInfo.InvariantCulture, queryTemplate, new object[] { queryId++, log, providerFilter });
-                            result += addedQuery;
+                            result.AppendFormat(CultureInfo.InvariantCulture, queryTemplate, new object[] { queryId++, log, providerFilter });
                         }
-                        result += queryListClose;
+                        result.Append(queryListClose);
                     }
                     break;
 
                 case "GetLogSet":
                     {
-                        result = queryListOpen;
+                        result.Append(queryListOpen);
                         uint queryId = 0;
                         foreach (string log in _logNamesMatchingWildcard)
                         {
-                            string addedQuery;
-                            addedQuery = string.Format(CultureInfo.InvariantCulture, queryTemplate, new object[] { queryId++, log, _filter });
-                            result += addedQuery;
+                            result.AppendFormat(CultureInfo.InvariantCulture, queryTemplate, new object[] { queryId++, log, _filter });
                         }
-                        result += queryListClose;
+                        result.Append(queryListClose);
                     }
                     break;
 
                 case "FileSet":
                     {
-                        result = queryListOpen;
+                        result.Append(queryListOpen);
                         uint queryId = 0;
                         foreach (string filePath in _resolvedPaths)
                         {
                             string properFilePath = filePrefix + filePath;
-                            string addedQuery;
-                            addedQuery = string.Format(CultureInfo.InvariantCulture, queryTemplate, new object[] { queryId++, properFilePath, _filter });
-                            result += addedQuery;
+                            result.AppendFormat(CultureInfo.InvariantCulture, queryTemplate, new object[] { queryId++, properFilePath, _filter });
                         }
-                        result += queryListClose;
+                        result.Append(queryListClose);
                     }
                     break;
 
                 case "HashQuerySet":
-                    result = BuildStructuredQueryFromHashTable(eventLogSession);
+                    result.Append(BuildStructuredQueryFromHashTable(eventLogSession));
                     break;
 
                 default:
@@ -985,9 +983,97 @@ namespace Microsoft.PowerShell.Commands
                     break;
             }
 
-            WriteVerbose(string.Format(CultureInfo.InvariantCulture, _resourceMgr.GetString("QueryTrace"), result));
+            WriteVerbose(string.Format(CultureInfo.InvariantCulture, _resourceMgr.GetString("QueryTrace"), result.ToString()));
 
-            return result;
+            return result.ToString();
+        }
+
+        //
+        // BuildXPathFromHashTable() build xpath from hashtable
+        //
+        private string BuildXPathFromHashTable(Hashtable hash)
+        {
+            StringBuilder xpathString = new StringBuilder("");
+            bool bDateTimeHandled = false;
+
+            foreach (string key in hash.Keys)
+            {
+                string added = "";
+
+                switch (key.ToLowerInvariant())
+                {
+                    case hashkey_logname_lc:
+                    case hashkey_path_lc:
+                    case hashkey_providername_lc:
+                        break;
+                    case hashkey_id_lc:
+                        added = HandleEventIdHashValue(hash[key]);
+                        break;
+
+                    case hashkey_level_lc:
+                        added = HandleLevelHashValue(hash[key]);
+                        break;
+
+                    case hashkey_keywords_lc:
+                        added = HandleKeywordHashValue(hash[key]);
+                        break;
+
+                    case hashkey_starttime_lc:
+                        if (bDateTimeHandled)
+                        {
+                            break;
+                        }
+
+                        added = HandleStartTimeHashValue(hash[key], hash);
+
+                        bDateTimeHandled = true;
+                        break;
+
+                    case hashkey_endtime_lc:
+                        if (bDateTimeHandled)
+                        {
+                            break;
+                        }
+
+                        added = HandleEndTimeHashValue(hash[key], hash);
+
+                        bDateTimeHandled = true;
+                        break;
+
+                    case hashkey_data_lc:
+                        added = HandleDataHashValue(hash[key]);
+                        break;
+
+                    case hashkey_userid_lc:
+                        added = HandleContextHashValue(hash[key]);
+                        break;
+
+                    case hashkey_supress_lc:
+                        break;
+                    default:
+                        {
+                            //
+                            // None of the recognized values: this must be a named event data field
+                            //
+                            // Fix Issue #2327
+                            added = HandleNamedDataHashValue(key, hash[key]);
+
+                        }
+                        break;
+                }
+
+                if (added.Length > 0)
+                {
+                    if (xpathString.Length != 0)
+                    {
+                        xpathString.Append(" and ");
+                    }
+                    xpathString.Append(added);
+                }
+
+            }
+
+            return xpathString.ToString();
         }
 
         //
@@ -996,15 +1082,16 @@ namespace Microsoft.PowerShell.Commands
         //
         private string BuildStructuredQueryFromHashTable(EventLogSession eventLogSession)
         {
-            string result = "";
+            StringBuilder result = new StringBuilder("");
 
-            result = queryListOpen;
+            result.Append(queryListOpen);
 
             uint queryId = 0;
 
             foreach (Hashtable hash in _selector)
             {
                 string xpathString = "";
+                string xpathStringSuppress = "";
 
                 CheckHashTableForQueryPathPresence(hash);
 
@@ -1015,12 +1102,17 @@ namespace Microsoft.PowerShell.Commands
                 Dictionary<string, string> queriedLogsQueryMap = new Dictionary<string, string>();
 
                 //
+                // queriedLogsQueryMapSuppress is the same as queriedLogsQueryMap but for <Suppress>
+                //
+                Dictionary<string, string> queriedLogsQueryMapSuppress = new Dictionary<string, string>();
+
+                //
                 // Process log, _path, or provider parameters first
                 // to create initial partially-filled query templates.
                 // Error out for direct channels unless -oldest is present.
-                // 
+                //
                 // Order is important! Process "providername" key after "logname" and "file".
-                //            
+                //
                 if (hash.ContainsKey(hashkey_logname_lc))
                 {
                     List<string> logPatterns = new List<string>();
@@ -1042,6 +1134,8 @@ namespace Microsoft.PowerShell.Commands
                     {
                         queriedLogsQueryMap.Add(logName.ToLowerInvariant(),
                                                 string.Format(CultureInfo.InvariantCulture, queryOpenerTemplate, queryId++, logName));
+                        queriedLogsQueryMapSuppress.Add(logName.ToLowerInvariant(),
+                                                        string.Format(CultureInfo.InvariantCulture, suppressOpener, queryId++, logName));
                     }
                 }
                 if (hash.ContainsKey(hashkey_path_lc))
@@ -1055,6 +1149,8 @@ namespace Microsoft.PowerShell.Commands
                             {
                                 queriedLogsQueryMap.Add(filePrefix + resolvedPath.ToLowerInvariant(),
                                                         string.Format(CultureInfo.InvariantCulture, queryOpenerTemplate, queryId++, filePrefix + resolvedPath));
+                                queriedLogsQueryMapSuppress.Add(filePrefix + resolvedPath.ToLowerInvariant(),
+                                                                string.Format(CultureInfo.InvariantCulture, suppressOpener, queryId++, filePrefix + resolvedPath));
                             }
                         }
                     }
@@ -1065,6 +1161,8 @@ namespace Microsoft.PowerShell.Commands
                         {
                             queriedLogsQueryMap.Add(filePrefix + resolvedPath.ToLowerInvariant(),
                                                     string.Format(CultureInfo.InvariantCulture, queryOpenerTemplate, queryId++, filePrefix + resolvedPath));
+                            queriedLogsQueryMapSuppress.Add(filePrefix + resolvedPath.ToLowerInvariant(),
+                                                            string.Format(CultureInfo.InvariantCulture, suppressOpener, queryId++, filePrefix + resolvedPath));
                         }
                     }
                 }
@@ -1097,6 +1195,8 @@ namespace Microsoft.PowerShell.Commands
                             string query = string.Format(CultureInfo.InvariantCulture, queryOpenerTemplate, queryId++, keyLogName);
                             queriedLogsQueryMap.Add(keyLogName.ToLowerInvariant(),
                                                      query + "[" + providersPredicate);
+                            queriedLogsQueryMapSuppress.Add(keyLogName.ToLowerInvariant(),
+                                                            string.Format(CultureInfo.InvariantCulture, suppressOpener, queryId++, keyLogName.ToLowerInvariant()));
                         }
                     }
                     else
@@ -1120,6 +1220,7 @@ namespace Microsoft.PowerShell.Commands
                                 {
                                     WriteVerbose(string.Format(CultureInfo.InvariantCulture, _resourceMgr.GetString("SpecifiedProvidersDontWriteToLog"), queriedLog));
                                     queriedLogsQueryMap.Remove(queriedLog);
+                                    queriedLogsQueryMapSuppress.Remove(queriedLog);
                                     bRemovedIrrelevantLogs = true;
                                 }
                             }
@@ -1139,7 +1240,7 @@ namespace Microsoft.PowerShell.Commands
 
                 //
                 // If none of the logs/paths/providers were valid, queriedLogsQueryMap is empty.
-                // Simply conitnue to the next hashtable since all the errors have been written already.
+                // Simply continue to the next hashtable since all the errors have been written already.
                 //
                 if (queriedLogsQueryMap.Count == 0)
                 {
@@ -1150,115 +1251,28 @@ namespace Microsoft.PowerShell.Commands
                 // At this point queriedLogsQueryMap contains all the query openings: missing the actual XPaths
                 // Let's build xpathString to attach to each query opening.
                 //
-                bool bDateTimeHandled = false;
-                foreach (string key in hash.Keys)
+                xpathString = BuildXPathFromHashTable(hash);
+
+                //
+                // Build xpath for <Suppress>
+                //
+                Hashtable suppresshash = hash[hashkey_supress_lc] as Hashtable;
+                if (suppresshash != null)
                 {
-                    string added = "";
-
-                    switch (key.ToLowerInvariant())
-                    {
-                        case hashkey_logname_lc:
-                        case hashkey_path_lc:
-                        case hashkey_providername_lc:
-                            break;
-                        case hashkey_id_lc:
-                            added = HandleEventIdHashValue(hash[key]);
-                            if (added.Length > 0)
-                            {
-                                ExtendPredicate(ref xpathString);
-                                xpathString += added;
-                            }
-                            break;
-
-                        case hashkey_level_lc:
-                            added = HandleLevelHashValue(hash[key]);
-                            if (added.Length > 0)
-                            {
-                                ExtendPredicate(ref xpathString);
-                                xpathString += added;
-                            }
-                            break;
-
-                        case hashkey_keywords_lc:
-                            added = HandleKeywordHashValue(hash[key]);
-                            if (added.Length > 0)
-                            {
-                                ExtendPredicate(ref xpathString);
-                                xpathString += added;
-                            }
-                            break;
-
-                        case hashkey_starttime_lc:
-                            if (bDateTimeHandled)
-                            {
-                                break;
-                            }
-                            added = HandleStartTimeHashValue(hash[key], hash);
-                            if (added.Length > 0)
-                            {
-                                ExtendPredicate(ref xpathString);
-                                xpathString += added;
-                            }
-
-                            bDateTimeHandled = true;
-                            break;
-
-                        case hashkey_endtime_lc:
-                            if (bDateTimeHandled)
-                            {
-                                break;
-                            }
-
-                            added = HandleEndTimeHashValue(hash[key], hash);
-                            if (added.Length > 0)
-                            {
-                                ExtendPredicate(ref xpathString);
-                                xpathString += added;
-                            }
-
-                            bDateTimeHandled = true;
-                            break;
-
-                        case hashkey_data_lc:
-                            added = HandleDataHashValue(hash[key]);
-                            if (added.Length > 0)
-                            {
-                                ExtendPredicate(ref xpathString);
-                                xpathString += added;
-                            }
-                            break;
-
-                        case hashkey_userid_lc:
-                            added = HandleContextHashValue(hash[key]);
-                            if (added.Length > 0)
-                            {
-                                ExtendPredicate(ref xpathString);
-                                xpathString += added;
-                            }
-                            break;
-
-                        default:
-                            {
-                                //
-                                // None of the recognized values: this must be a named payload field
-                                //
-                                ExtendPredicate(ref xpathString);
-                                xpathString += string.Format(CultureInfo.InvariantCulture,
-                                                            "([EventData[Data[@Name='{0}']='{1}']] or [UserData/*/{0}='{1}'])",
-                                                            key, hash[key]);
-                            }
-                            break;
-                    }
+                    xpathStringSuppress = BuildXPathFromHashTable(suppresshash);
                 }
 
                 //
                 // Complete each query with the XPath.
                 // Handle the case where the query opener already has provider predicate(s).
                 // Add the queries from queriedLogsQueryMap into the resulting string.
-                //        
-                foreach (string query in queriedLogsQueryMap.Values)
+                // Add <Suppress> from queriedLogsQueryMapSuppress into the resulting string.
+                //
+                foreach (string keyLogName in queriedLogsQueryMap.Keys)
                 {
-                    result += query;
+                    // For every Log a separate query is
+                    string query = queriedLogsQueryMap[keyLogName];
+                    result.Append(query);
 
                     if (query.EndsWith("*", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1267,7 +1281,7 @@ namespace Microsoft.PowerShell.Commands
                         //
                         if (xpathString.Length != 0)
                         {
-                            result += propOpen + xpathString + propClose;
+                            result.Append(propOpen).Append(xpathString).Append(propClose);
                         }
                     }
                     else
@@ -1277,19 +1291,30 @@ namespace Microsoft.PowerShell.Commands
                         //
                         if (xpathString.Length != 0)
                         {
-                            result += " and " + xpathString;
+                            result.Append(" and ").Append(xpathString);
                         }
-                        result += propClose;
+                        result.Append(propClose);
                     }
 
-                    result += queryCloser;
+                    result.Append(SelectCloser);
+
+                    if (xpathStringSuppress.Length != 0)
+                    {
+                        // Add <Suppress>*xpathStringSuppress</Suppress> into query
+                        string suppress = queriedLogsQueryMapSuppress[keyLogName];
+                        result.Append(suppress);
+                        result.Append(propOpen).Append(xpathStringSuppress).Append(propClose);
+                        result.Append(suppressCloser);
+                    }
+
+                    result.Append(queryCloser);
                 }
-            } //end foreach hashtable  
+            } //end foreach hashtable
 
 
-            result += queryListClose;
+            result.Append(queryListClose);
 
-            return result;
+            return result.ToString();
         }
 
         //
@@ -1298,27 +1323,27 @@ namespace Microsoft.PowerShell.Commands
         //
         private string HandleEventIdHashValue(Object value)
         {
-            string ret = "";
-            if (value is Array)
+            StringBuilder ret = new StringBuilder();
+            Array idsArray = value as Array;
+            if (idsArray != null)
             {
-                Array idsArray = (Array)(value);
-                ret += "(";
+                ret.Append("(");
                 for (int i = 0; i < idsArray.Length; i++)
                 {
-                    ret += "(System/EventID=" + idsArray.GetValue(i).ToString() + ")";
+                    ret.Append(SystemEventIDTemplate).Append(idsArray.GetValue(i).ToString()).Append(")");
                     if (i < (idsArray.Length - 1))
                     {
-                        ret += " or ";
+                        ret.Append(" or ");
                     }
                 }
-                ret += ")";
+                ret.Append(")");
             }
             else
             {
-                ret += "(System/EventID=" + value + ")";
+                ret.Append(SystemEventIDTemplate).Append(value).Append(")");
             }
 
-            return ret;
+            return ret.ToString();
         }
 
         //
@@ -1327,28 +1352,27 @@ namespace Microsoft.PowerShell.Commands
         //
         private string HandleLevelHashValue(Object value)
         {
-            string ret = "";
-
-            if (value is Array)
+            StringBuilder ret = new StringBuilder();
+            Array levelsArray = value as Array;
+            if (levelsArray != null)
             {
-                Array levelsArray = (Array)(value);
-                ret += "(";
+                ret.Append("(");
                 for (int i = 0; i < levelsArray.Length; i++)
                 {
-                    ret += "(System/Level=" + levelsArray.GetValue(i).ToString() + ")";
+                    ret.Append(SystemLevelTemplate).Append(levelsArray.GetValue(i).ToString()).Append(")");
                     if (i < (levelsArray.Length - 1))
                     {
-                        ret += " or ";
+                        ret.Append(" or ");
                     }
                 }
-                ret += ")";
+                ret.Append(")");
             }
             else
             {
-                ret += "(System/Level=" + value + ")";
+                ret.Append(SystemLevelTemplate).Append(value).Append(")");
             }
 
-            return ret;
+            return ret.ToString();
         }
 
         //
@@ -1360,9 +1384,10 @@ namespace Microsoft.PowerShell.Commands
             Int64 keywordsMask = 0;
             Int64 keywordLong = 0;
 
-            if (value is Array)
+            Array keywordArray = value as Array;
+            if (keywordArray != null)
             {
-                foreach (Object keyword in (Array)value)
+                foreach (Object keyword in keywordArray)
                 {
                     if (KeywordStringToInt64(keyword.ToString(), ref keywordLong))
                     {
@@ -1379,7 +1404,7 @@ namespace Microsoft.PowerShell.Commands
                 keywordsMask |= keywordLong;
             }
 
-            return string.Format(CultureInfo.InvariantCulture, "System[band(Keywords,{0})]", keywordsMask);
+            return string.Format(CultureInfo.InvariantCulture, SystemKeywordsTemplate, keywordsMask);
         }
 
         //
@@ -1416,7 +1441,7 @@ namespace Microsoft.PowerShell.Commands
                 }
             }
 
-            return string.Format(CultureInfo.InvariantCulture, "(System/Security[@UserID='{0}'])", sidCandidate.ToString());
+            return string.Format(CultureInfo.InvariantCulture, SystemSecurityTemplate, sidCandidate.ToString());
         }
 
 
@@ -1427,8 +1452,7 @@ namespace Microsoft.PowerShell.Commands
         //
         private string HandleStartTimeHashValue(Object value, Hashtable hash)
         {
-            string ret = "";
-
+            StringBuilder ret = new StringBuilder();
             DateTime startTime = new DateTime();
             if (!StringToDateTime(value.ToString(), ref startTime))
             {
@@ -1449,18 +1473,19 @@ namespace Microsoft.PowerShell.Commands
                 endTime = endTime.ToUniversalTime();
                 string endTimeFormatted = endTime.ToString("s", CultureInfo.InvariantCulture) + "." + endTime.Millisecond.ToString("d3", CultureInfo.InvariantCulture) + "Z";
 
-                ret += string.Format(CultureInfo.InvariantCulture,
-                                             "(System/TimeCreated[@SystemTime&gt;='{0}' and @SystemTime&lt;='{1}'])",
-                                             startTimeFormatted, endTimeFormatted);
+                ret.AppendFormat(CultureInfo.InvariantCulture,
+                                 SystemTimePeriodTemplate,
+                                 startTimeFormatted,
+                                 endTimeFormatted);
             }
             else
             {
-                ret += string.Format(CultureInfo.InvariantCulture,
-                                             "(System/TimeCreated[@SystemTime&gt;='{0}'])",
-                                             startTimeFormatted);
+                ret.AppendFormat(CultureInfo.InvariantCulture,
+                                 SystemTimeStartTemplate,
+                                 startTimeFormatted);
             }
 
-            return ret;
+            return ret.ToString();
         }
 
 
@@ -1471,8 +1496,7 @@ namespace Microsoft.PowerShell.Commands
         //
         private string HandleEndTimeHashValue(Object value, Hashtable hash)
         {
-            string ret = "";
-
+            StringBuilder ret = new StringBuilder();
             DateTime endTime = new DateTime();
             if (!StringToDateTime(value.ToString(), ref endTime))
             {
@@ -1495,16 +1519,19 @@ namespace Microsoft.PowerShell.Commands
                 string startTimeFormatted = startTime.ToString("s", CultureInfo.InvariantCulture) + "."
                                                                + startTime.Millisecond.ToString("d3", CultureInfo.InvariantCulture) + "Z";
 
-                ret += string.Format(CultureInfo.InvariantCulture, "(System/TimeCreated[@SystemTime&gt;='{0}' and @SystemTime&lt;='{1}'])",
-                                             startTimeFormatted, endTimeFormatted);
+                ret.AppendFormat(CultureInfo.InvariantCulture,
+                                 SystemTimePeriodTemplate,
+                                 startTimeFormatted,
+                                 endTimeFormatted);
             }
             else
             {
-                ret += string.Format(CultureInfo.InvariantCulture, "(System/TimeCreated[@SystemTime&lt;='{0}'])",
-                                             endTimeFormatted);
+                ret.AppendFormat(CultureInfo.InvariantCulture,
+                                 SystemTimeEndTemplate,
+                                 endTimeFormatted);
             }
 
-            return ret;
+            return ret.ToString();
         }
 
         //
@@ -1513,27 +1540,62 @@ namespace Microsoft.PowerShell.Commands
         //
         private string HandleDataHashValue(Object value)
         {
-            string ret = "";
-            if (value is Array)
+            StringBuilder ret = new StringBuilder();
+            Array dataArray = value as Array;
+            if (dataArray != null)
             {
-                Array dataArray = (Array)(value);
-                ret += "(";
+                ret.Append("(");
                 for (int i = 0; i < dataArray.Length; i++)
                 {
-                    ret += string.Format(CultureInfo.InvariantCulture, "(EventData/Data='{0}')", dataArray.GetValue(i).ToString());
+                    ret.AppendFormat(CultureInfo.InvariantCulture, DataTemplate, dataArray.GetValue(i).ToString());
                     if (i < (dataArray.Length - 1))
                     {
-                        ret += " or ";
+                        ret.Append(" or ");
                     }
                 }
-                ret += ")";
+                ret.Append(")");
             }
             else
             {
-                ret += string.Format(CultureInfo.InvariantCulture, "(EventData/Data='{0}')", value);
+                ret.AppendFormat(CultureInfo.InvariantCulture, DataTemplate, value);
             }
 
-            return ret;
+            return ret.ToString();
+        }
+
+
+        //
+        // HandleNamedDataHashValue helper for hashtable structured query builder.
+        // Constructs and returns named event data field XPath portion as a string.
+        // Fix Issue #2327
+        //
+        private string HandleNamedDataHashValue(String key, Object value)
+        {
+            StringBuilder ret = new StringBuilder();
+            Array dataArray = value as Array;
+            if (dataArray != null)
+            {
+                ret.Append("(");
+                for (int i = 0; i < dataArray.Length; i++)
+                {
+                    ret.AppendFormat(CultureInfo.InvariantCulture,
+                                         NamedDataTemplate,
+                                         key, dataArray.GetValue(i).ToString());
+                    if (i < (dataArray.Length - 1))
+                    {
+                        ret.Append(" or ");
+                    }
+                }
+                ret.Append(")");
+            }
+            else
+            {
+                ret.AppendFormat(CultureInfo.InvariantCulture,
+                                         NamedDataTemplate,
+                                         key, value);
+            }
+
+            return ret.ToString();
         }
 
 
@@ -1556,7 +1618,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         //
-        // TerminateForNonEvtxFileWithoutOldest terminates for .evt and .etl files unless -Oldest is specified.                
+        // TerminateForNonEvtxFileWithoutOldest terminates for .evt and .etl files unless -Oldest is specified.
         //
         private void TerminateForNonEvtxFileWithoutOldest(string fileName)
         {
@@ -1574,7 +1636,7 @@ namespace Microsoft.PowerShell.Commands
 
         //
         // ValidateLogName writes an error if logName is not a valid log.
-        // It also terminates for direct ETW channels unless -Oldest is specified.                
+        // It also terminates for direct ETW channels unless -Oldest is specified.
         //
         private bool ValidateLogName(string logName, EventLogSession eventLogSession)
         {
@@ -1611,18 +1673,6 @@ namespace Microsoft.PowerShell.Commands
             return true;
         }
 
-        //
-        // ExtendPredicate helper for the query builder.
-        // Extends the XPath predicate string.
-        //
-        private void ExtendPredicate(ref string xpathString)
-        {
-            if (xpathString.Length != 0)
-            {
-                xpathString += " and ";
-            }
-        }
-
 
         //
         // KeywordStringToInt64 helper converts a string to Int64.
@@ -1650,7 +1700,7 @@ namespace Microsoft.PowerShell.Commands
         // StringToDateTime helper converts a string to DateTime object.
         // Returns true and DateTime ref if successful.
         // Writes an error and returns false if dtString cannot be converted.
-        // 
+        //
         private bool StringToDateTime(string dtString, ref DateTime dt)
         {
             try
@@ -1672,8 +1722,8 @@ namespace Microsoft.PowerShell.Commands
         // ValidateAndResolveFilePath helper.
         // Returns a string collection of resolved file paths.
         // Writes non-terminating errors for invalid paths
-        // and returns an empty colleciton.
-        // 
+        // and returns an empty collection.
+        //
         private StringCollection ValidateAndResolveFilePath(string path)
         {
             StringCollection retColl = new StringCollection();
@@ -1722,7 +1772,7 @@ namespace Microsoft.PowerShell.Commands
                     continue;
                 }
 
-                // 
+                //
                 // Check the extension: only .evt, .evtx, and .etl files are allowed.
                 // If the file was specified without wildcards, display an error.
                 // Otherwise, skip silently.
@@ -1766,15 +1816,19 @@ namespace Microsoft.PowerShell.Commands
                         Exception exc = new Exception(string.Format(CultureInfo.InvariantCulture, msg, key));
                         ThrowTerminatingError(new ErrorRecord(exc, "NullNotAllowedInHashtable", ErrorCategory.InvalidArgument, key));
                     }
-                    else if (value is Array)
+                    else
                     {
-                        foreach (Object elt in (Array)value)
+                        Array eltArray = value as Array;
+                        if (eltArray != null)
                         {
-                            if (elt == null)
+                            foreach (Object elt in eltArray)
                             {
-                                string msg = _resourceMgr.GetString("NullNotAllowedInHashtable");
-                                Exception exc = new Exception(string.Format(CultureInfo.InvariantCulture, msg, key));
-                                ThrowTerminatingError(new ErrorRecord(exc, "NullNotAllowedInHashtable", ErrorCategory.InvalidArgument, key));
+                                if (elt == null)
+                                {
+                                    string msg = _resourceMgr.GetString("NullNotAllowedInHashtable");
+                                    Exception exc = new Exception(string.Format(CultureInfo.InvariantCulture, msg, key));
+                                    ThrowTerminatingError(new ErrorRecord(exc, "NullNotAllowedInHashtable", ErrorCategory.InvalidArgument, key));
+                                }
                             }
                         }
                     }
@@ -1785,7 +1839,7 @@ namespace Microsoft.PowerShell.Commands
         //
         // AddProviderPredicatesToFilter() builds an XPath query
         // by adding provider predicates to _filter.
-        // Note that this is by no means an XPath expression parser 
+        // Note that this is by no means an XPath expression parser
         // and will may produce garbage if the _filterXPath expression provided by the user is invalid.
         // However, we are relying on the EventLog XPath parser to reject the garbage later on.
         //
@@ -1835,18 +1889,18 @@ namespace Microsoft.PowerShell.Commands
                 return "";
             }
 
-            string predicate = "System/Provider[";
+            StringBuilder predicate = new StringBuilder("System/Provider[");
             for (int i = 0; i < providers.Count; i++)
             {
-                predicate += "@Name='" + providers[i] + "'";
+                predicate.Append("@Name='").Append(providers[i]).Append("'");
                 if (i < (providers.Count - 1))
                 {
-                    predicate += " or ";
+                    predicate.Append(" or ");
                 }
             }
-            predicate += "]";
+            predicate.Append("]");
 
-            return predicate;
+            return predicate.ToString();
         }
 
 
@@ -1854,7 +1908,7 @@ namespace Microsoft.PowerShell.Commands
         // BuildAllProvidersPredicate() builds a predicate expression like:
         // "System/Provider[@Name='a' or @Name='b']"
         // for all unique provider names specified in _providersByLogMap.
-        // Eliminates duplicates, too, since the same provider can 
+        // Eliminates duplicates, too, since the same provider can
         // be writing to several different logs.
         //
         private string BuildAllProvidersPredicate()
@@ -1864,7 +1918,7 @@ namespace Microsoft.PowerShell.Commands
                 return "";
             }
 
-            string predicate = "System/Provider[";
+            StringBuilder predicate = new StringBuilder("System/Provider[");
 
             List<string> uniqueProviderNames = new List<string>();
 
@@ -1882,16 +1936,16 @@ namespace Microsoft.PowerShell.Commands
 
             for (int i = 0; i < uniqueProviderNames.Count; i++)
             {
-                predicate += "@Name='" + uniqueProviderNames[i] + "'";
+                predicate.Append("@Name='").Append(uniqueProviderNames[i]).Append("'");
                 if (i < uniqueProviderNames.Count - 1)
                 {
-                    predicate += " or ";
+                    predicate.Append(" or ");
                 }
             }
 
-            predicate += "]";
+            predicate.Append("]");
 
-            return predicate;
+            return predicate.ToString();
         }
 
 
@@ -1899,8 +1953,8 @@ namespace Microsoft.PowerShell.Commands
         // AddLogsForProviderToInternalMap helper.
         // Retrieves log names to which _providerName writes.
         // NOTE: there are many misconfigured providers in the system.
-        // We therefore catch EventLogException excpetions and write them out as non-terminating errors.
-        // The results are added to _providersByLogMap dictionary.  
+        // We therefore catch EventLogException exceptions and write them out as non-terminating errors.
+        // The results are added to _providersByLogMap dictionary.
         //
         private void AddLogsForProviderToInternalMap(EventLogSession eventLogSession, string providerName)
         {
@@ -1917,7 +1971,7 @@ namespace Microsoft.PowerShell.Commands
                         //
                         // Skip direct ETW channels unless -force is present.
                         // Error out for direct channels unless -oldest is present.
-                        //                
+                        //
                         EventLogConfiguration logObj = new EventLogConfiguration(logLink.LogName, eventLogSession);
                         if (logObj.LogType == EventLogType.Debug || logObj.LogType == EventLogType.Analytical)
                         {
@@ -1966,9 +2020,9 @@ namespace Microsoft.PowerShell.Commands
 
         //
         // FindLogNamesMatchingWildcards helper.
-        // Finds all logs whose names match wildcard patterns in the 'logPatterns' argument.   
+        // Finds all logs whose names match wildcard patterns in the 'logPatterns' argument.
         // For each non-matched pattern, a non-terminating error is written.
-        // The results are added to _logNamesMatchingWildcard array.  
+        // The results are added to _logNamesMatchingWildcard array.
         //
         private void FindLogNamesMatchingWildcards(EventLogSession eventLogSession, IEnumerable<string> logPatterns)
         {
@@ -2040,9 +2094,9 @@ namespace Microsoft.PowerShell.Commands
 
         //
         // FindProvidersByLogForWildcardPatterns helper.
-        // Finds all providers whose names match wildcard patterns in 'providerPatterns' argument.   
+        // Finds all providers whose names match wildcard patterns in 'providerPatterns' argument.
         // For each non-matched pattern, a non-terminating error is written.
-        // The results are added to _providersByLogMap dictionary (keyed by log names to which these providers write).  
+        // The results are added to _providersByLogMap dictionary (keyed by log names to which these providers write).
         //
         private void FindProvidersByLogForWildcardPatterns(EventLogSession eventLogSession, IEnumerable<string> providerPatterns)
         {

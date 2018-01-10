@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Management.Automation;
@@ -9,7 +9,7 @@ namespace Microsoft.PowerShell.Commands
     /// <summary>
     /// This class implements Get-PSCallStack.
     /// </summary>
-    [Cmdlet(VerbsCommon.Get, "PSCallStack", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113326")]
+    [Cmdlet(VerbsCommon.Get, "PSCallStack", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113326")]
     [OutputType(typeof(CallStackFrame))]
     public class GetPSCallStackCommand : PSCmdlet
     {

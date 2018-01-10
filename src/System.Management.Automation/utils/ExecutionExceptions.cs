@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 #pragma warning disable 1634, 1691
@@ -9,13 +9,7 @@ Copyright (c) Microsoft Corporation.  All rights reserved.
 using System.Runtime.Serialization;
 using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation.Internal;
-
-#if !CORECLR
 using System.Security.Permissions;
-#else
-// Use stub for SerializableAttribute, SecurityPermissionAttribute and ISerializable related types.
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
 
 #pragma warning disable 1634, 1691 // Stops compiler from warning about unknown warnings
 
@@ -315,7 +309,7 @@ namespace System.Management.Automation
     /// indicates that the command was stopped asynchronously, either by the
     /// user hitting CTRL-C, or by a call to
     /// <see cref="System.Management.Automation.Runspaces.Pipeline.Stop"/>.
-    /// 
+    ///
     /// When a cmdlet or provider sees this exception thrown from a Monad API such as
     ///     WriteObject(object)
     /// this means that the command was already stopped.  The cmdlet or provider
@@ -1037,9 +1031,9 @@ namespace System.Management.Automation
     /// </summary>
     /// <remarks>
     /// For example, "more" will throw HaltCommandException if the user hits "q".
-    /// 
+    ///
     /// Only throw HaltCommandException from your implementation of ProcessRecord etc.
-    /// 
+    ///
     /// Note that HaltCommandException does not define IContainsErrorRecord.
     /// This is because it is not reported to the user.
     /// </remarks>

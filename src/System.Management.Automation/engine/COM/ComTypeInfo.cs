@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Diagnostics.CodeAnalysis;
@@ -15,6 +15,18 @@ namespace System.Management.Automation
     /// </summary>
     internal class ComTypeInfo
     {
+        /// <summary>
+        /// A member with a DISPID equal to –4 is found on a collection interface.
+        /// This special member, often called '_NewEnum', returns an interface that enables clients to enumerate objects in a collection.
+        /// </summary>
+        internal const int DISPID_NEWENUM = -4;
+
+        /// <summary>
+        /// A member with a DISPID equal to 0 is considered a default member.
+        /// Default members in COM can be transformed to default members in .NET (indexers in C#).
+        /// </summary>
+        internal const int DISPID_DEFAULTMEMBER = 0;
+
         /// <summary>
         ///  Member variables.
         /// </summary>
@@ -44,7 +56,7 @@ namespace System.Management.Automation
         /// <summary>
         ///  Collection of properties in the COM object.
         /// </summary>
-        public Dictionary<String, ComProperty> Properties
+        internal Dictionary<String, ComProperty> Properties
         {
             get
             {
@@ -55,7 +67,7 @@ namespace System.Management.Automation
         /// <summary>
         ///  Collection of methods in the COM object.
         /// </summary>
-        public Dictionary<String, ComMethod> Methods
+        internal Dictionary<String, ComMethod> Methods
         {
             get
             {
@@ -63,18 +75,22 @@ namespace System.Management.Automation
             }
         }
 
-
-
         /// <summary>
         ///  Returns the string of the GUID for the type information.
         /// </summary>
-        public string Clsid
+        internal string Clsid
         {
             get
             {
                 return _guid.ToString();
             }
         }
+
+        /// <summary>
+        /// If 'DISPID_NEWENUM' member is present, return the InvokeKind;
+        /// otherwise, return null.
+        /// </summary>
+        internal COM.INVOKEKIND? NewEnumInvokeKind { get; private set; }
 
         /// <summary>
         /// Initializes the typeinfo object
@@ -91,11 +107,13 @@ namespace System.Management.Automation
                 for (int i = 0; i < typeattr.cFuncs; i++)
                 {
                     COM.FUNCDESC funcdesc = GetFuncDesc(_typeinfo, i);
+                    if (funcdesc.memid == DISPID_NEWENUM) { NewEnumInvokeKind = funcdesc.invkind; }
+
                     if ((funcdesc.wFuncFlags & 0x1) == 0x1)
                     {
                         // http://msdn.microsoft.com/en-us/library/ee488948.aspx
                         // FUNCFLAGS -- FUNCFLAG_FRESTRICTED = 0x1:
-                        //     Indicates that the function should not be accessible from macro languages. 
+                        //     Indicates that the function should not be accessible from macro languages.
                         //     This flag is intended for system-level functions or functions that type browsers should not display.
                         //
                         // For IUnknown methods (AddRef, QueryInterface and Release) and IDispatch methods (GetTypeInfoCount, GetTypeInfo, GetIDsOfNames and Invoke)
@@ -199,13 +217,13 @@ namespace System.Management.Automation
         {
             IntPtr pTypeAttr;
             typeinfo.GetTypeAttr(out pTypeAttr);
-            COM.TYPEATTR typeattr = ClrFacade.PtrToStructure<COM.TYPEATTR>(pTypeAttr);
+            COM.TYPEATTR typeattr = Marshal.PtrToStructure<COM.TYPEATTR>(pTypeAttr);
             typeinfo.ReleaseTypeAttr(pTypeAttr);
             return typeattr;
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="typeinfo"></param>
         /// <param name="index"></param>
@@ -215,14 +233,14 @@ namespace System.Management.Automation
         {
             IntPtr pFuncDesc;
             typeinfo.GetFuncDesc(index, out pFuncDesc);
-            COM.FUNCDESC funcdesc = ClrFacade.PtrToStructure<COM.FUNCDESC>(pFuncDesc);
+            COM.FUNCDESC funcdesc = Marshal.PtrToStructure<COM.FUNCDESC>(pFuncDesc);
             typeinfo.ReleaseFuncDesc(pFuncDesc);
             return funcdesc;
         }
 
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="typeinfo"></param>
         /// <returns></returns>
@@ -258,7 +276,7 @@ namespace System.Management.Automation
         /// <returns>ITypeInfo reference to the Dispatch interface </returns>
         internal static COM.ITypeInfo GetDispatchTypeInfoFromCoClassTypeInfo(COM.ITypeInfo typeinfo)
         {
-            //Get the number of interfaces implmented by this CoClass.
+            //Get the number of interfaces implemented by this CoClass.
             COM.TYPEATTR typeattr = GetTypeAttr(typeinfo);
             int count = typeattr.cImplTypes;
             int href;

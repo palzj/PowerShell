@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+﻿// Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-#if !CORECLR // Only enable/port what is needed by CORE CLR. 
+#if !CORECLR // Only enable/port what is needed by CORE CLR.
 namespace Microsoft.CodeAnalysis
 {
     /// <summary>

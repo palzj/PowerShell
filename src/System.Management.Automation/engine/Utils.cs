@@ -1,10 +1,11 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Security;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
+using System.Management.Automation.Configuration;
 using System.Management.Automation.Internal;
 using System.Management.Automation.Security;
 using System.Reflection;
@@ -20,16 +21,17 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Text;
-using System.Security.Principal;
 
 using TypeTable = System.Management.Automation.Runspaces.TypeTable;
-using PSUtils = System.Management.Automation.PsUtils;
+
+using System.Diagnostics;
+using Microsoft.Win32.SafeHandles;
 
 namespace System.Management.Automation
 {
     /// <summary>
     /// helper fns
-    /// </summary> 
+    /// </summary>
     internal static class Utils
     {
         // From System.Web.Util.HashCodeCombiner
@@ -95,7 +97,7 @@ namespace System.Management.Automation
             }
             //
             // we use AES algorithm which supports key
-            // lenghts of 128, 192 and 256 bits.
+            // lengths of 128, 192 and 256 bits.
             // We throw ArgumentException if the key is
             // of any other length
             //
@@ -169,7 +171,7 @@ namespace System.Management.Automation
 
             try
             {
-                p = ClrFacade.SecureStringToCoTaskMemUnicode(ss);
+                p = Marshal.SecureStringToCoTaskMemUnicode(ss);
                 s = Marshal.PtrToStringUni(p);
             }
             finally
@@ -184,7 +186,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Gets TypeTable by querying the ExecutionContext stored in 
+        /// Gets TypeTable by querying the ExecutionContext stored in
         /// Thread-Local-Storage. This will return null if ExecutionContext
         /// is not available.
         /// </summary>
@@ -200,8 +202,12 @@ namespace System.Management.Automation
             return ecFromTLS.TypeTable;
         }
 
+#if !UNIX
         private static string s_pshome = null;
 
+        /// <summary>
+        /// Get the application base path of the shell from registry
+        /// </summary>
         internal static string GetApplicationBaseFromRegistry(string shellId)
         {
             bool wantPsHome = (object)shellId == (object)DefaultPowerShellShellID;
@@ -226,72 +232,30 @@ namespace System.Management.Automation
 
             return null;
         }
+#endif
 
-        /// <summary>
-        /// Gets the application base for current monad version
-        /// </summary>
-        /// <returns>
-        /// applicationbase path for current monad version installation
-        /// </returns>
-        /// <exception cref="SecurityException">
-        /// if caller doesn't have permission to read the key
-        /// </exception>
+        internal static string DefaultPowerShellAppBase => GetApplicationBase(DefaultPowerShellShellID);
         internal static string GetApplicationBase(string shellId)
         {
-#if CORECLR 
-            // Use the location of SMA.dll as the application base
-            // Assembly.GetEntryAssembly and GAC are not in CoreCLR.
-            Assembly assembly = typeof(PSObject).GetTypeInfo().Assembly;
+            // Use the location of SMA.dll as the application base.
+            Assembly assembly = typeof(PSObject).Assembly;
             return Path.GetDirectoryName(assembly.Location);
-#else
-            // This code path applies to Windows FullCLR inbox deployments. All CoreCLR 
-            // implementations should use the location of SMA.dll since it must reside in PSHOME.
-            //
-            // try to get the path from the registry first
-            string result = GetApplicationBaseFromRegistry(shellId);
-            if (result != null)
-            {
-                return result;
-            }
-            
-            // The default keys aren't installed, so try and use the entry assembly to
-            // get the application base. This works for managed apps like minishells...
-            Assembly assem = Assembly.GetEntryAssembly();
-            if (assem != null)
-            {
-                // For minishells, we just return the executable path. 
-                return Path.GetDirectoryName(assem.Location);
-            }
-
-            // For unmanaged host apps, look for the SMA dll, if it's not GAC'ed then
-            // use it's location as the application base...
-            assem = typeof(PSObject).GetTypeInfo().Assembly;
-            string gacRootPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.Net\\assembly");
-            if (!assem.Location.StartsWith(gacRootPath, StringComparison.OrdinalIgnoreCase))
-            {
-                // For other hosts. 
-                return Path.GetDirectoryName(assem.Location);
-            }
-
-            // otherwise, just give up...
-            return "";
-#endif
         }
 
         private static string[] s_productFolderDirectories;
 
         /// <summary>
         /// Specifies the per-user configuration settings directory in a platform agnostic manner.
-        /// Windows Ex:
-        ///     %LOCALAPPDATA%\PowerShell
-        /// Non-Windows Ex:
-        ///     ~/.config/PowerShell
         /// </summary>
         /// <returns>The current user's configuration settings directory</returns>
-        internal static string GetUserSettingsDirectory()
+        internal static string GetUserConfigurationDirectory()
         {
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            return Path.Combine(appDataPath, "PowerShell");
+#if UNIX
+            return Platform.SelectProductNameForDirectory(Platform.XDG_Type.CONFIG);
+#else
+            string basePath = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+            return IO.Path.Combine(basePath, Utils.ProductNameForDirectory);
+#endif
         }
 
         private static string[] GetProductFolderDirectories()
@@ -301,12 +265,12 @@ namespace System.Management.Automation
                 List<string> baseDirectories = new List<string>();
 
                 // Retrieve the application base from the registry
-                string appBase = GetApplicationBase(DefaultPowerShellShellID);
+                string appBase = Utils.DefaultPowerShellAppBase;
                 if (!string.IsNullOrEmpty(appBase))
                 {
                     baseDirectories.Add(appBase);
                 }
-
+#if !UNIX
                 // Win8: 454976
                 // Now add the two variations of System32
                 baseDirectories.Add(Environment.GetFolderPath(Environment.SpecialFolder.System));
@@ -315,17 +279,13 @@ namespace System.Management.Automation
                 {
                     baseDirectories.Add(systemX86);
                 }
-
+#endif
                 // And built-in modules
                 string progFileDir;
                 // TODO: #1184 will resolve this work-around
                 // Side-by-side versions of PowerShell use modules from their application base, not
                 // the system installation path.
-#if CORECLR
                 progFileDir = Path.Combine(appBase, "Modules");
-#else
-                progFileDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WindowsPowerShell", "Modules");
-#endif
 
                 if (!string.IsNullOrEmpty(progFileDir))
                 {
@@ -333,9 +293,6 @@ namespace System.Management.Automation
                     baseDirectories.Add(Path.Combine(progFileDir, "PowerShellGet"));
                     baseDirectories.Add(Path.Combine(progFileDir, "Pester"));
                     baseDirectories.Add(Path.Combine(progFileDir, "PSReadLine"));
-#if CORECLR
-                    baseDirectories.Add(Path.Combine(progFileDir, "Json.Net"));
-#endif // CORECLR
                 }
                 Interlocked.CompareExchange(ref s_productFolderDirectories, baseDirectories.ToArray(), null);
             }
@@ -344,7 +301,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Checks if the filePath represents a file under product folder 
+        /// Checks if the filePath represents a file under product folder
         /// ie., PowerShell ApplicationBase or $env:windir\system32 or
         /// $env:windir\syswow64.
         /// </summary>
@@ -373,7 +330,7 @@ namespace System.Management.Automation
         /// </summary>
         internal static bool IsRunningFromSysWOW64()
         {
-            return Utils.GetApplicationBase(Utils.DefaultPowerShellShellID).Contains("SysWOW64");
+            return DefaultPowerShellAppBase.Contains("SysWOW64");
         }
 
         /// <summary>
@@ -424,7 +381,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Coverts a string to version format. 
+        /// Coverts a string to version format.
         /// If the string is of the format x (ie., no dots), then ".0" is appended
         /// to the string.
         /// Version.TryParse will be used to convert the string to a Version
@@ -522,64 +479,6 @@ namespace System.Management.Automation
             return AllowedEditionValues.Contains(editionValue, StringComparer.OrdinalIgnoreCase);
         }
 
-#if !CORECLR
-        /// <summary>
-        /// Checks whether current monad session supports NetFrameworkVersion specified
-        /// by checkVersion. The specified version is treated as the the minimum required 
-        /// version of .NET framework.
-        /// </summary>
-        /// <param name="checkVersion">Version to check</param>
-        /// <param name="higherThanKnownHighestVersion">true if version to check is higher than the known highest version</param>
-        /// <returns>true if supported, false otherwise</returns>
-        internal static bool IsNetFrameworkVersionSupported(Version checkVersion, out bool higherThanKnownHighestVersion)
-        {
-            higherThanKnownHighestVersion = false;
-            bool isSupported = false;
-
-            if (checkVersion == null)
-            {
-                return false;
-            }
-
-            // Construct a temporary version number with build number and revision number set to 0. 
-            // This is done so as to re-use the version specifications in PSUtils.FrameworkRegistryInstallation          
-            Version tempVersion = new Version(checkVersion.Major, checkVersion.Minor, 0, 0);
-
-            // Win8: 840038 - For any version above the highest known .NET version (4.5 for Windows 8), we can't make a call as to 
-            // whether the requirement is satisfied or not because we can't detect that version of .NET.
-            // We end up erring on the side of app compat by letting it through. 
-            // We will write a message in the Verbose output saying that we cannot detect the specified version of the .NET Framework.
-            if (checkVersion > PsUtils.FrameworkRegistryInstallation.KnownHighestNetFrameworkVersion)
-            {
-                isSupported = true;
-                higherThanKnownHighestVersion = true;
-            }
-            // For a script to have a valid .NET version, the specified version or atleast one of its compatible versions must be installed on the machine.
-            else if (PSUtils.FrameworkRegistryInstallation.CompatibleNetFrameworkVersions.ContainsKey(tempVersion))
-            {
-                if (PSUtils.FrameworkRegistryInstallation.IsFrameworkInstalled(tempVersion.Major, tempVersion.Minor, 0))
-                {
-                    // If the specified version is installed on the machine, then we return true.
-                    isSupported = true;
-                }
-                else
-                {
-                    // If any of the compatible versions are installed on the machine, then we return true.
-                    HashSet<Version> compatibleVersions = PSUtils.FrameworkRegistryInstallation.CompatibleNetFrameworkVersions[tempVersion];
-                    foreach (Version compatibleVersion in compatibleVersions)
-                    {
-                        if (PSUtils.FrameworkRegistryInstallation.IsFrameworkInstalled(compatibleVersion.Major, compatibleVersion.Minor, 0))
-                        {
-                            isSupported = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            return isSupported;
-        }
-#endif
         #endregion
 
         /// <summary>
@@ -590,11 +489,7 @@ namespace System.Management.Automation
         /// <summary>
         /// This is used to construct the profile path.
         /// </summary>
-#if CORECLR
         internal static string ProductNameForDirectory = Platform.IsInbox ? "WindowsPowerShell" : "PowerShell";
-#else
-        internal const string ProductNameForDirectory = "WindowsPowerShell";
-#endif
 
         /// <summary>
         /// The subdirectory of module paths
@@ -602,166 +497,215 @@ namespace System.Management.Automation
         /// </summary>
         internal static string ModuleDirectory = Path.Combine(ProductNameForDirectory, "Modules");
 
-        internal static string GetRegistryConfigurationPrefix()
+        internal readonly static ConfigScope[] SystemWideOnlyConfig = new[] { ConfigScope.SystemWide };
+        internal readonly static ConfigScope[] CurrentUserOnlyConfig = new[] { ConfigScope.CurrentUser };
+        internal readonly static ConfigScope[] SystemWideThenCurrentUserConfig = new[] { ConfigScope.SystemWide, ConfigScope.CurrentUser };
+        internal readonly static ConfigScope[] CurrentUserThenSystemWideConfig = new[] { ConfigScope.CurrentUser, ConfigScope.SystemWide };
+
+        internal static T GetPolicySetting<T>(ConfigScope[] preferenceOrder) where T : PolicyBase, new()
         {
-            // For 3.0 PowerShell, we still use "1" as the registry version key for 
-            // Snapin and Custom shell lookup/discovery.
-            // For 3.0 PowerShell, we use "3" as the registry version key only for Engine
-            // related data like ApplicationBase etc.
-            return "SOFTWARE\\Microsoft\\PowerShell\\" + PSVersionInfo.RegistryVersion1Key + "\\ShellIds";
+            T policy = null;
+#if !UNIX
+            // On Windows, group policy settings from registry take precedence.
+            // If the requested policy is not defined in registry, we query the configuration file. 
+            policy = GetPolicySettingFromGPO<T>(preferenceOrder);
+            if (policy != null) { return policy; }
+#endif
+            policy = GetPolicySettingFromConfigFile<T>(preferenceOrder);
+            return policy;
         }
 
-        internal static string GetRegistryConfigurationPath(string shellID)
+        private readonly static ConcurrentDictionary<ConfigScope, PowerShellPolicies> s_cachedPoliciesFromConfigFile =
+            new ConcurrentDictionary<ConfigScope, PowerShellPolicies>();
+
+        /// <summary>
+        /// Get a specific kind of policy setting from the configuration file.
+        /// </summary>
+        private static T GetPolicySettingFromConfigFile<T>(ConfigScope[] preferenceOrder) where T : PolicyBase, new()
         {
-            return GetRegistryConfigurationPrefix() + "\\" + shellID;
-        }
-
-        // Retrieves group policy settings based on the preference order provided:
-        // Dictionary<string, object> settings = GetGroupPolicySetting("Transcription", Registry.LocalMachine, Registry.CurrentUser);
-
-        internal static RegistryKey[] RegLocalMachine = new[] { Registry.LocalMachine };
-        internal static RegistryKey[] RegCurrentUser = new[] { Registry.CurrentUser };
-        internal static RegistryKey[] RegLocalMachineThenCurrentUser = new[] { Registry.LocalMachine, Registry.CurrentUser };
-        internal static RegistryKey[] RegCurrentUserThenLocalMachine = new[] { Registry.CurrentUser, Registry.LocalMachine };
-
-        internal static Dictionary<string, object> GetGroupPolicySetting(string settingName, RegistryKey[] preferenceOrder)
-        {
-            string groupPolicyBase = "Software\\Policies\\Microsoft\\Windows\\PowerShell";
-            return GetGroupPolicySetting(groupPolicyBase, settingName, preferenceOrder);
-        }
-
-        // We use a static to avoid creating "extra garbage."
-        private static Dictionary<string, object> s_emptyDictionary = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-
-        internal static Dictionary<string, object> GetGroupPolicySetting(string groupPolicyBase, string settingName, RegistryKey[] preferenceOrder)
-        {
-#if UNIX
-            return s_emptyDictionary;
-#else
-            lock (s_cachedGroupPolicySettings)
+            foreach (ConfigScope scope in preferenceOrder)
             {
-                // Return cached information, if we have it
-                Dictionary<string, object> settings;
-                if ((s_cachedGroupPolicySettings.TryGetValue(settingName, out settings)) &&
-                    !InternalTestHooks.BypassGroupPolicyCaching)
+                PowerShellPolicies policies;
+                if (InternalTestHooks.BypassGroupPolicyCaching)
                 {
-                    return settings;
+                    policies = PowerShellConfig.Instance.GetPowerShellPolicies(scope);
                 }
-
-                if (!String.Equals(".", settingName, StringComparison.OrdinalIgnoreCase))
+                else if (!s_cachedPoliciesFromConfigFile.TryGetValue(scope, out policies))
                 {
-                    groupPolicyBase += "\\" + settingName;
-                }
-
-                settings = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (RegistryKey searchKey in preferenceOrder)
-                {
-                    try
+                    // Use lock here to reduce the contention on accessing the configuration file
+                    lock (s_cachedPoliciesFromConfigFile)
                     {
-                        // Look up the machine-wide group policy
-                        using (RegistryKey key = searchKey.OpenSubKey(groupPolicyBase))
+                        policies = s_cachedPoliciesFromConfigFile.GetOrAdd(scope, PowerShellConfig.Instance.GetPowerShellPolicies);
+                    }
+                }
+
+                if (policies != null)
+                {
+                    PolicyBase result = null;
+                    switch (typeof(T).Name)
+                    {
+                        case nameof(ScriptExecution):             result = policies.ScriptExecution; break;
+                        case nameof(ScriptBlockLogging):          result = policies.ScriptBlockLogging; break;
+                        case nameof(ModuleLogging):               result = policies.ModuleLogging; break;
+                        case nameof(ProtectedEventLogging):       result = policies.ProtectedEventLogging; break;
+                        case nameof(Transcription):               result = policies.Transcription; break;
+                        case nameof(UpdatableHelp):               result = policies.UpdatableHelp; break;
+                        case nameof(ConsoleSessionConfiguration): result = policies.ConsoleSessionConfiguration; break;
+                        default: Diagnostics.Assert(false, "Should be unreachable code. Update this switch block when new PowerShell policy types are added."); break;
+                    }
+                    if (result != null) { return (T) result; }
+                }
+            }
+
+            return null;
+        }
+
+#if !UNIX
+        private static readonly Dictionary<string, string> GroupPolicyKeys = new Dictionary<string, string>
+        {
+            {nameof(ScriptExecution), @"Software\Policies\Microsoft\PowerShellCore"},
+            {nameof(ScriptBlockLogging), @"Software\Policies\Microsoft\PowerShellCore\ScriptBlockLogging"},
+            {nameof(ModuleLogging), @"Software\Policies\Microsoft\PowerShellCore\ModuleLogging"},
+            {nameof(ProtectedEventLogging), @"Software\Policies\Microsoft\Windows\EventLog\ProtectedEventLogging"},
+            {nameof(Transcription), @"Software\Policies\Microsoft\PowerShellCore\Transcription"},
+            {nameof(UpdatableHelp), @"Software\Policies\Microsoft\PowerShellCore\UpdatableHelp"},
+            {nameof(ConsoleSessionConfiguration), @"Software\Policies\Microsoft\PowerShellCore\ConsoleSessionConfiguration"}
+        };
+        private readonly static ConcurrentDictionary<Tuple<ConfigScope, string>, PolicyBase> s_cachedPoliciesFromRegistry =
+            new ConcurrentDictionary<Tuple<ConfigScope, string>, PolicyBase>();
+
+        /// <summary>
+        /// The implementation of fetching a specific kind of policy setting from the given configuration scope.
+        /// </summary>
+        private static T GetPolicySettingFromGPOImpl<T>(ConfigScope scope) where T : PolicyBase, new()
+        {
+            Type tType = typeof(T);
+            // SystemWide scope means 'LocalMachine' root key when query from registry
+            RegistryKey rootKey = (scope == ConfigScope.SystemWide) ? Registry.LocalMachine : Registry.CurrentUser;
+
+            GroupPolicyKeys.TryGetValue(tType.Name, out string gpoKeyPath);
+            Diagnostics.Assert(gpoKeyPath != null, StringUtil.Format("The GPO registry key path should be pre-defined for {0}", tType.Name));
+
+            using (RegistryKey gpoKey = rootKey.OpenSubKey(gpoKeyPath))
+            {
+                // If the corresponding GPO key doesn't exist, return null
+                if (gpoKey == null) { return null; }
+
+                // The corresponding GPO key exists, then create an instance of T
+                // and populate its properties with the settings
+                object tInstance = Activator.CreateInstance(tType, nonPublic: true);
+                var properties = tType.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+                bool isAnyPropertySet = false;
+
+                string[] valueNames = gpoKey.GetValueNames();
+                string[] subKeyNames = gpoKey.GetSubKeyNames();
+                var valueNameSet = valueNames.Length > 0 ? new HashSet<string>(valueNames, StringComparer.OrdinalIgnoreCase) : null;
+                var subKeyNameSet = subKeyNames.Length > 0 ? new HashSet<string>(subKeyNames, StringComparer.OrdinalIgnoreCase) : null;
+
+                foreach (var property in properties)
+                {
+                    string settingName = property.Name;
+                    object rawRegistryValue = null;
+
+                    // Get the raw value from registry.
+                    if (valueNameSet != null && valueNameSet.Contains(settingName))
+                    {
+                        rawRegistryValue = gpoKey.GetValue(settingName);
+                    }
+                    else if (subKeyNameSet != null && subKeyNameSet.Contains(settingName))
+                    {
+                        using (RegistryKey subKey = gpoKey.OpenSubKey(settingName))
                         {
-                            if (key != null)
-                            {
-                                foreach (string subkeyName in key.GetValueNames())
-                                {
-                                    // A null or empty subkey name string corresponds to a (Default) key.
-                                    // If it is null, make it an empty string which the Dictionary can handle.
-                                    string keyName = subkeyName ?? string.Empty;
-
-                                    settings[keyName] = key.GetValue(keyName);
-                                }
-
-                                foreach (string subkeyName in key.GetSubKeyNames())
-                                {
-                                    // A null or empty subkey name string corresponds to a (Default) key.
-                                    // If it is null, make it an empty string which the Dictionary can handle.
-                                    string keyName = subkeyName ?? string.Empty;
-
-                                    using (RegistryKey subkey = key.OpenSubKey(keyName))
-                                    {
-                                        if (subkey != null)
-                                        {
-                                            settings[keyName] = subkey.GetValueNames();
-                                        }
-                                    }
-                                }
-
-                                break;
-                            }
+                            if (subKey != null) { rawRegistryValue = subKey.GetValueNames(); }
                         }
                     }
-                    catch (System.Security.SecurityException)
+
+                    // Get the actual property value based on the property type.
+                    // If the final property value is not null, then set the property.
+                    if (rawRegistryValue != null)
                     {
-                        // User doesn't have access to open group policy key
+                        Type propertyType = property.PropertyType;
+                        object propertyValue = null;
+
+                        switch (propertyType)
+                        {
+                            case var _ when propertyType == typeof(bool?):
+                                if (rawRegistryValue is int rawIntValue)
+                                {
+                                    if (rawIntValue == 1) { propertyValue = true; }
+                                    else if (rawIntValue == 0) { propertyValue = false; }
+                                }
+                                break;
+                            case var _ when propertyType == typeof(string):
+                                if (rawRegistryValue is string rawStringValue)
+                                {
+                                    propertyValue = rawStringValue;
+                                }
+                                break;
+                            case var _ when propertyType == typeof(string[]):
+                                if (rawRegistryValue is string[] rawStringArrayValue)
+                                {
+                                    propertyValue = rawStringArrayValue;
+                                }
+                                else if (rawRegistryValue is string stringValue)
+                                {
+                                    propertyValue = new string[] { stringValue };
+                                }
+                                break;
+                            default:
+                                Diagnostics.Assert(false, "Should be unreachable code. Update this switch block when properties of new types are added to PowerShell policy types.");
+                                break;
+                        }
+
+                        // Set the property if the value is not null
+                        if (propertyValue != null)
+                        {
+                            property.SetValue(tInstance, propertyValue);
+                            isAnyPropertySet = true;
+                        }
                     }
                 }
 
-                // No group policy settings, then return null
-                if (settings.Count == 0)
-                {
-                    settings = null;
-                }
-
-                // Cache the data
-                if (!InternalTestHooks.BypassGroupPolicyCaching)
-                {
-                    s_cachedGroupPolicySettings[settingName] = settings;
-                }
-
-                return settings;
+                // If no property is set, then we consider this policy as undefined
+                return isAnyPropertySet ? (T) tInstance : null;
             }
-#endif
         }
-        private static ConcurrentDictionary<string, Dictionary<string, object>> s_cachedGroupPolicySettings =
-            new ConcurrentDictionary<string, Dictionary<string, object>>();
+
+        /// <summary>
+        /// Get a specific kind of policy setting from the group policy registry key.
+        /// </summary>
+        private static T GetPolicySettingFromGPO<T>(ConfigScope[] preferenceOrder) where T : PolicyBase, new()
+        {
+            PolicyBase policy = null;
+            foreach (ConfigScope scope in preferenceOrder)
+            {
+                if (InternalTestHooks.BypassGroupPolicyCaching)
+                {
+                    policy = GetPolicySettingFromGPOImpl<T>(scope);
+                }
+                else
+                {
+                    var key = Tuple.Create(scope, typeof(T).Name);
+                    if (!s_cachedPoliciesFromRegistry.TryGetValue(key, out policy))
+                    {
+                        lock (s_cachedPoliciesFromRegistry)
+                        {
+                            policy = s_cachedPoliciesFromRegistry.GetOrAdd(key, tuple => GetPolicySettingFromGPOImpl<T>(tuple.Item1));
+                        }
+                    }
+                }
+
+                if (policy != null) { return (T) policy; }
+            }
+
+            return null;
+        }
+#endif
 
         /// <summary>
         /// Scheduled job module name.
         /// </summary>
         internal const string ScheduledJobModuleName = "PSScheduledJob";
-
-        internal const string WorkflowType = "Microsoft.PowerShell.Workflow.AstToWorkflowConverter, Microsoft.PowerShell.Activities, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35";
-        internal const string WorkflowModule = "PSWorkflow";
-
-        internal static IAstToWorkflowConverter GetAstToWorkflowConverterAndEnsureWorkflowModuleLoaded(ExecutionContext context)
-        {
-            IAstToWorkflowConverter converterInstance = null;
-            Type converterType = null;
-
-            if (Utils.IsRunningFromSysWOW64())
-            {
-                throw new NotSupportedException(AutomationExceptions.WorkflowDoesNotSupportWOW64);
-            }
-
-            // If the current language mode is ConstrainedLanguage but the system lockdown mode is not,
-            // then also block the conversion - since we can't validate the InlineScript, PowerShellValue,
-            // etc.
-            if ((context != null) &&
-                (context.LanguageMode == PSLanguageMode.ConstrainedLanguage) &&
-                (SystemPolicy.GetSystemLockdownPolicy() != SystemEnforcementMode.Enforce))
-            {
-                throw new NotSupportedException(Modules.CannotDefineWorkflowInconsistentLanguageMode);
-            }
-
-            EnsureModuleLoaded(WorkflowModule, context);
-
-            converterType = Type.GetType(WorkflowType);
-
-            if (converterType != null)
-            {
-                converterInstance = (IAstToWorkflowConverter)converterType.GetConstructor(PSTypeExtensions.EmptyTypes).Invoke(EmptyArray<object>());
-            }
-
-            if (converterInstance == null)
-            {
-                string error = StringUtil.Format(AutomationExceptions.CantLoadWorkflowType, Utils.WorkflowType, Utils.WorkflowModule);
-                throw new NotSupportedException(error);
-            }
-
-            return converterInstance;
-        }
 
         internal static void EnsureModuleLoaded(string module, ExecutionContext context)
         {
@@ -794,10 +738,9 @@ namespace System.Management.Automation
 
                         ps.Invoke<PSModuleInfo>();
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         // Call-out to user code, catch-all OK
-                        CommandProcessorBase.CheckForSevereException(e);
                     }
                     finally
                     {
@@ -860,10 +803,9 @@ namespace System.Management.Automation
                     }
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 // Call-out to user code, catch-all OK
-                CommandProcessorBase.CheckForSevereException(e);
             }
             finally
             {
@@ -922,10 +864,9 @@ namespace System.Management.Automation
                     }
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 // Call-out to user code, catch-all OK
-                CommandProcessorBase.CheckForSevereException(e);
             }
             finally
             {
@@ -943,7 +884,7 @@ namespace System.Management.Automation
             // Porting note: only Windows supports the SecurityPrincipal API of .NET. Due to
             // advanced privilege models, the correct approach on Unix is to assume the user has
             // permissions, attempt the task, and error gracefully if the task fails due to
-            // permissions. To fit into PowerShell's existing model of pre-emptively checking
+            // permissions. To fit into PowerShell's existing model of preemptively checking
             // permissions (which cannot be assumed on Unix), we "assume" the user is an
             // administrator by returning true, thus nullifying this check on Unix.
 #if UNIX
@@ -996,7 +937,27 @@ namespace System.Management.Automation
                     Win32Exception win32Exception = new Win32Exception(errorCode);
                     exception = new UnauthorizedAccessException(win32Exception.Message, win32Exception);
                 }
-
+                else if (errorCode == 32)
+                {
+                    // Errorcode 32 is 'ERROR_SHARING_VIOLATION' i.e.
+                    // The process cannot access the file because it is being used by another process.
+                    // GetFileAttributes may return INVALID_FILE_ATTRIBUTES for a system file or directory because of this error.
+                    // GetFileAttributes function tries to open the file with FILE_READ_ATTRIBUTES access right but it fails if the
+                    // sharing flag for the file is set to 0x00000000.This flag prevents it from opening a file for delete, read, or
+                    // write access. For example: C:\pagefile.sys is always opened by OS with sharing flag 0x00000000.
+                    // But FindFirstFile is still able to get attributes as this api retrieves the required information using a find
+                    // handle generated with FILE_LIST_DIRECTORY access.
+                    // Fall back to FindFirstFile to check if the file actually exists.
+                    IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
+                    NativeMethods.WIN32_FIND_DATA findData;
+                    IntPtr findHandle = NativeMethods.FindFirstFile(path, out findData);
+                    if (findHandle != INVALID_HANDLE_VALUE)
+                    {
+                        isDirectory = (findData.dwFileAttributes & NativeMethods.FileAttributes.Directory) != 0;
+                        NativeMethods.FindClose(findHandle);
+                        return true;
+                    }
+                }
                 else if (errorCode == 53)
                 {
                     // ERROR_BAD_NETPATH - The network path was not found.
@@ -1083,6 +1044,7 @@ namespace System.Management.Automation
 
         internal static bool IsReservedDeviceName(string destinationPath)
         {
+#if !UNIX
             string[] reservedDeviceNames = { "CON", "PRN", "AUX", "CLOCK$", "NUL",
                                              "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
                                              "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
@@ -1106,7 +1068,7 @@ namespace System.Management.Automation
                     return true;
                 }
             }
-
+#endif
             return false;
         }
 
@@ -1122,8 +1084,22 @@ namespace System.Management.Automation
 
         internal class NativeMethods
         {
-            [DllImport(PinvokeDllNames.GetFileAttributesDllName, CharSet = CharSet.Unicode, SetLastError = true)]
-            internal static extern int GetFileAttributes(string lpFileName);
+            private static string EnsureLongPathPrefixIfNeeded(string path)
+            {
+                if (path.Length >= MAX_PATH && !path.StartsWith(@"\\?\", StringComparison.Ordinal))
+                    return @"\\?\" + path;
+
+                return path;
+            }
+
+            [DllImport(PinvokeDllNames.GetFileAttributesDllName, EntryPoint = "GetFileAttributesW", CharSet = CharSet.Unicode, SetLastError = true)]
+            private static extern int GetFileAttributesPrivate(string lpFileName);
+
+            internal static int GetFileAttributes(string fileName)
+            {
+                fileName = EnsureLongPathPrefixIfNeeded(fileName);
+                return GetFileAttributesPrivate(fileName);
+            }
 
             [Flags]
             internal enum FileAttributes
@@ -1175,24 +1151,12 @@ namespace System.Management.Automation
         internal static readonly HashSet<string> PowerShellAssemblies =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 {
-                    "microsoft.powershell.activities",
                     "microsoft.powershell.commands.diagnostics",
                     "microsoft.powershell.commands.management",
                     "microsoft.powershell.commands.utility",
                     "microsoft.powershell.consolehost",
-                    "microsoft.powershell.core.activities",
-                    "microsoft.powershell.diagnostics.activities",
-                    "microsoft.powershell.editor",
-                    "microsoft.powershell.gpowershell",
-                    "microsoft.powershell.graphicalhost",
-                    "microsoft.powershell.isecommon",
-                    "microsoft.powershell.management.activities",
                     "microsoft.powershell.scheduledjob",
-                    "microsoft.powershell.security.activities",
                     "microsoft.powershell.security",
-                    "microsoft.powershell.utility.activities",
-                    "microsoft.powershell.workflow.servicecore",
-                    "microsoft.wsman.management.activities",
                     "microsoft.wsman.management",
                     "microsoft.wsman.runtime",
                     "system.management.automation"
@@ -1268,11 +1232,12 @@ namespace System.Management.Automation
             return hresult >= 0;
         }
 
-        internal static FileSystemCmdletProviderEncoding GetEncoding(string path)
+        // Attempt to determine the existing encoding
+        internal static Encoding GetEncoding(string path)
         {
             if (!File.Exists(path))
             {
-                return FileSystemCmdletProviderEncoding.Default;
+                return ClrFacade.GetDefaultEncoding();
             }
 
             byte[] initialBytes = new byte[100];
@@ -1290,12 +1255,12 @@ namespace System.Management.Automation
             }
             catch (IOException)
             {
-                return FileSystemCmdletProviderEncoding.Default;
+                return ClrFacade.GetDefaultEncoding();
             }
 
             // Test for four-byte preambles
             string preamble = null;
-            FileSystemCmdletProviderEncoding foundEncoding = FileSystemCmdletProviderEncoding.Default;
+            Encoding foundEncoding = ClrFacade.GetDefaultEncoding();
 
             if (bytesRead > 3)
             {
@@ -1331,78 +1296,26 @@ namespace System.Management.Automation
             string initialBytesAsAscii = System.Text.Encoding.ASCII.GetString(initialBytes, 0, bytesRead);
             if (initialBytesAsAscii.IndexOfAny(nonPrintableCharacters) >= 0)
             {
-                return FileSystemCmdletProviderEncoding.Byte;
+                return Encoding.Unicode;
             }
 
-            return FileSystemCmdletProviderEncoding.Ascii;
+            return Encoding.ASCII;
         }
 
-        internal static Encoding GetEncodingFromEnum(FileSystemCmdletProviderEncoding encoding)
-        {
-            System.Text.Encoding result = System.Text.Encoding.Unicode;
 
-            switch (encoding)
-            {
-                case FileSystemCmdletProviderEncoding.String:
-                    result = new UnicodeEncoding();
-                    break;
-
-                case FileSystemCmdletProviderEncoding.Unicode:
-                    result = new UnicodeEncoding();
-                    break;
-
-                case FileSystemCmdletProviderEncoding.BigEndianUnicode:
-                    result = new UnicodeEncoding(true, false);
-                    break;
-
-                case FileSystemCmdletProviderEncoding.UTF8:
-                    result = new UTF8Encoding();
-                    break;
-
-                case FileSystemCmdletProviderEncoding.UTF7:
-                    result = new UTF7Encoding();
-                    break;
-
-                case FileSystemCmdletProviderEncoding.UTF32:
-                    result = new UTF32Encoding();
-                    break;
-
-                case FileSystemCmdletProviderEncoding.BigEndianUTF32:
-                    result = new UTF32Encoding(true, false);
-                    break;
-
-                case FileSystemCmdletProviderEncoding.Ascii:
-                    result = new ASCIIEncoding();
-                    break;
-
-                case FileSystemCmdletProviderEncoding.Default:
-                    result = ClrFacade.GetDefaultEncoding();
-                    break;
-
-                case FileSystemCmdletProviderEncoding.Oem:
-                    result = ClrFacade.GetOEMEncoding();
-                    break;
-
-                default:
-                    // Default to unicode encoding
-                    result = new UnicodeEncoding();
-                    break;
-            }
-
-            return result;
-        } // GetEncodingFromEnum
-
-        // [System.Text.Encoding]::GetEncodings() | ? { $_.GetEncoding().GetPreamble() } |
+        // BigEndianUTF32 encoding is possible, but requires creation
+        internal static Encoding BigEndianUTF32Encoding = new UTF32Encoding(bigEndian: true, byteOrderMark: true);
+        // [System.Text.Encoding]::GetEncodings() | Where-Object { $_.GetEncoding().GetPreamble() } |
         //     Add-Member ScriptProperty Preamble { $this.GetEncoding().GetPreamble() -join "-" } -PassThru |
         //     Format-Table -Auto
-        internal static Dictionary<String, FileSystemCmdletProviderEncoding> encodingMap =
-            new Dictionary<string, FileSystemCmdletProviderEncoding>()
+        internal static Dictionary<String, Encoding> encodingMap =
+            new Dictionary<string, Encoding>()
             {
-                { "255-254", FileSystemCmdletProviderEncoding.Unicode },
-                { "254-255", FileSystemCmdletProviderEncoding.BigEndianUnicode },
-                { "255-254-0-0", FileSystemCmdletProviderEncoding.UTF32 },
-                { "0-0-254-255", FileSystemCmdletProviderEncoding.BigEndianUTF32 },
-                { "239-187-191", FileSystemCmdletProviderEncoding.UTF8 },
+                { "255-254", Encoding.Unicode },
+                { "254-255", Encoding.BigEndianUnicode },
+                { "255-254-0-0", Encoding.UTF32 },
+                { "0-0-254-255", BigEndianUTF32Encoding },
+                { "239-187-191", Encoding.UTF8 },
             };
 
         internal static char[] nonPrintableCharacters = {
@@ -1411,7 +1324,10 @@ namespace System.Management.Automation
             (char) 21, (char) 22, (char) 23, (char) 24, (char) 25, (char) 26, (char) 28, (char) 29, (char) 30,
             (char) 31, (char) 127, (char) 129, (char) 141, (char) 143, (char) 144, (char) 157 };
 
-#if !CORECLR // TODO:CORECLR - WindowsIdentity.Impersonate() is not available. Use WindowsIdentity.RunImplemented to replace it.
+        internal static readonly UTF8Encoding utf8NoBom =
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
+#if !CORECLR // TODO:CORECLR - WindowsIdentity.Impersonate() is not available. Use WindowsIdentity.RunImpersonated to replace it.
         /// <summary>
         /// Queues a CLR worker thread with impersonation of provided Windows identity.
         /// </summary>
@@ -1528,8 +1444,48 @@ namespace System.Management.Automation
 
             // (Copied from System.IO.Path so we can call TrimEnd in the same way that Directory.EnumerateFiles would on the search patterns).
             // Trim trailing white spaces, tabs etc but don't be aggressive in removing everything that has UnicodeCategory of trailing space.
-            // String.WhitespaceChars will trim aggressively than what the underlying FS does (for ex, NTFS, FAT).    
+            // String.WhitespaceChars will trim aggressively than what the underlying FS does (for ex, NTFS, FAT).
             internal static readonly char[] PathSearchTrimEnd = { (char)0x9, (char)0xA, (char)0xB, (char)0xC, (char)0xD, (char)0x20, (char)0x85, (char)0xA0 };
+        }
+
+#if !UNIX
+        // This is to reduce the runtime overhead of the feature query
+        private static readonly Type ComObjectType = typeof(object).Assembly.GetType("System.__ComObject");
+#endif
+
+        internal static bool IsComObject(PSObject psObject)
+        {
+#if UNIX
+            return false;
+#else
+            if (psObject == null) { return false; }
+
+            object obj = PSObject.Base(psObject);
+            return IsComObject(obj);
+#endif
+        }
+
+        internal static bool IsComObject(object obj)
+        {
+#if UNIX
+            return false;
+#else
+            // We can't use System.Runtime.InteropServices.Marshal.IsComObject(obj) since it doesn't work in partial trust.
+            //
+            // There could be strongly typed RWCs whose type is not 'System.__ComObject', but the more specific type should
+            // derive from 'System.__ComObject'. The strongly typed RWCs can be created with 'new' operation via the Primay
+            // Interop Assembly (PIA).
+            // For example, with the PIA 'Microsoft.Office.Interop.Excel', you can write the following code:
+            //    var excelApp = new Microsoft.Office.Interop.Excel.Application();
+            //    Type type = excelApp.GetType();
+            //    Type comObjectType = typeof(object).Assembly.GetType("System.__ComObject");
+            //    Console.WriteLine("excelApp type: {0}", type.FullName);
+            //    Console.WriteLine("Is __ComObject assignable from? {0}", comObjectType.IsAssignableFrom(type));
+            // and the results are:
+            //    excelApp type: Microsoft.Office.Interop.Excel.ApplicationClass
+            //    Is __ComObject assignable from? True
+            return obj != null && ComObjectType.IsAssignableFrom(obj.GetType());
+#endif
         }
     }
 }
@@ -1544,11 +1500,23 @@ namespace System.Management.Automation.Internal
         internal static bool ForceScriptBlockLogging;
         internal static bool UseDebugAmsiImplementation;
         internal static bool BypassAppLockerPolicyCaching;
+        internal static bool BypassOnlineHelpRetrieval;
+
+        // Stop/Restart/Rename Computer tests
+        internal static bool TestStopComputer;
+        internal static bool TestWaitStopComputer;
+        internal static bool TestRenameComputer;
+        internal static int  TestStopComputerResults;
+        internal static int  TestRenameComputerResults;
+
         // It's useful to test that we don't depend on the ScriptBlock and AST objects and can use a re-parsed version.
         internal static bool IgnoreScriptBlockCache;
+        // Simulate 'System.Diagnostics.Stopwatch.IsHighResolution is false' to test Get-Uptime throw
+        internal static bool StopwatchIsNotHighResolution;
+        internal static bool DisableGACLoading;
 
         /// <summary>This member is used for internal test purposes.</summary>
-        public static void SetTestHook(string property, bool value)
+        public static void SetTestHook(string property, object value)
         {
             var fieldInfo = typeof(InternalTestHooks).GetField(property, BindingFlags.Static | BindingFlags.NonPublic);
             if (fieldInfo != null)

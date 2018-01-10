@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Management.Automation.Runspaces;
@@ -17,23 +17,23 @@ namespace System.Management.Automation
         /// <summary>
         /// Creates an instance of the ScriptInfo class with the specified name, and script.
         /// </summary>
-        /// 
+        ///
         /// <param name="name">
         /// The name of the script.
         /// </param>
-        /// 
+        ///
         /// <param name="script">
         /// The script definition
         /// </param>
-        /// 
+        ///
         /// <param name="context">
         /// The execution context for the script.
         /// </param>
-        /// 
+        ///
         /// <exception cref="ArgumentNullException">
         /// If <paramref name="script"/> is null.
         /// </exception>
-        /// 
+        ///
         internal ScriptInfo(string name, ScriptBlock script, ExecutionContext context)
             : base(name, CommandTypes.Script, context)
         {

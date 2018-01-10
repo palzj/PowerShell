@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -67,9 +67,9 @@ namespace Microsoft.PowerShell
         #region methods
 
         /// <summary>
-        /// 
+        ///
         /// See base class
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         /// <exception/>
@@ -82,15 +82,15 @@ namespace Microsoft.PowerShell
         }
 
         /// <summary>
-        /// 
+        ///
         /// See base class
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         /// <exception cref="NotSupportedException">
-        /// 
+        ///
         /// On calling this method
-        /// 
+        ///
         /// </exception>
 
         public override
@@ -101,15 +101,15 @@ namespace Microsoft.PowerShell
         }
 
         /// <summary>
-        /// 
+        ///
         /// See base class
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         /// <exception cref="NotSupportedException">
-        /// 
+        ///
         /// On calling this method
-        /// 
+        ///
         /// </exception>
         public override
         void
@@ -119,9 +119,9 @@ namespace Microsoft.PowerShell
         }
 
         /// <summary>
-        /// 
+        ///
         /// See base class
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         /// <exception/>
@@ -134,9 +134,9 @@ namespace Microsoft.PowerShell
         }
 
         /// <summary>
-        /// 
+        ///
         /// See base class
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         /// <exception/>

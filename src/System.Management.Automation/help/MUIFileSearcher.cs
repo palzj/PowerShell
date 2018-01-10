@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.IO;
@@ -7,14 +7,15 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace System.Management.Automation
 {
     internal class MUIFileSearcher
     {
         /// <summary>
-        /// Constructor. It is private so that MUIFileSearcher is used only internal for this class. 
-        /// To access functionality in this class, static api should be used. 
+        /// Constructor. It is private so that MUIFileSearcher is used only internal for this class.
+        /// To access functionality in this class, static api should be used.
         /// </summary>
         /// <param name="target"></param>
         /// <param name="searchPaths"></param>
@@ -39,11 +40,11 @@ namespace System.Management.Automation
         #region Basic Properties
 
         /// <summary>
-        /// Search target. It can be 
+        /// Search target. It can be
         ///     1. a file name
         ///     2. a search pattern
-        /// It can also include a path, in that case, 
-        ///     1. the path will be searched first for the existense of the files.
+        /// It can also include a path, in that case,
+        ///     1. the path will be searched first for the existence of the files.
         /// </summary>
         internal string Target { get; } = null;
 
@@ -53,7 +54,7 @@ namespace System.Management.Automation
         internal Collection<String> SearchPaths { get; } = null;
 
         /// <summary>
-        /// Search mode for this file search. 
+        /// Search mode for this file search.
         /// </summary>
         internal SearchMode SearchMode { get; } = SearchMode.Unique;
 
@@ -89,7 +90,7 @@ namespace System.Management.Automation
         private Hashtable _uniqueMatches = new Hashtable(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// search for files using the target, searchPaths member of this class. 
+        /// search for files using the target, searchPaths member of this class.
         /// </summary>
         private void SearchForFiles()
         {
@@ -120,11 +121,26 @@ namespace System.Management.Automation
             // extra logic to select the files that match the given pattern.
             ArrayList result = new ArrayList();
             string[] files = Directory.GetFiles(path);
+
+            var wildcardPattern = WildcardPattern.ContainsWildcardCharacters(pattern)
+                ? WildcardPattern.Get(pattern, WildcardOptions.IgnoreCase)
+                : null;
+
             foreach (string filePath in files)
             {
                 if (filePath.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     result.Add(filePath);
+                    break;
+                }
+
+                if (wildcardPattern != null)
+                {
+                    string fileName = Path.GetFileName(filePath);
+                    if (wildcardPattern.IsMatch(fileName))
+                    {
+                        result.Add(filePath);
+                    }
                 }
             }
             return (String[])result.ToArray(typeof(string));
@@ -154,14 +170,14 @@ namespace System.Management.Automation
 
                         case SearchMode.Unique:
                             // Construct a Unique filename for this directory.
-                            // Remember the file may belong to one of the sub-culture 
+                            // Remember the file may belong to one of the sub-culture
                             // directories. In this case we should not be returning
                             // same files that are residing in 2 or more sub-culture
                             // directories.
                             string leafFileName = Path.GetFileName(file);
                             string uniqueToDirectory = Path.Combine(directory, leafFileName);
 
-                            if (!_uniqueMatches.Contains(uniqueToDirectory))
+                            if (!_result.Contains(path) && !_uniqueMatches.Contains(uniqueToDirectory))
                             {
                                 _result.Add(path);
                                 _uniqueMatches[uniqueToDirectory] = true;
@@ -180,9 +196,9 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Search for files of a particular pattern under a particular directory. 
-        /// This will do MUI search in which appropriate language directories are 
-        /// searched in order. 
+        /// Search for files of a particular pattern under a particular directory.
+        /// This will do MUI search in which appropriate language directories are
+        /// searched in order.
         /// </summary>
         /// <param name="pattern"></param>
         /// <param name="directory"></param>
@@ -238,7 +254,7 @@ namespace System.Management.Automation
         {
             Collection<String> result = new Collection<String>();
 
-            // step 1: if target has path attached, directly locate 
+            // step 1: if target has path attached, directly locate
             //         file from there.
             if (!String.IsNullOrEmpty(target) && !String.IsNullOrEmpty(Path.GetDirectoryName(target)))
             {
@@ -267,7 +283,7 @@ namespace System.Management.Automation
             }
 
             // step 3: locate the file in the default PowerShell installation directory.
-            string defaultPSPath = GetMshDefaultInstallationPath();
+            string defaultPSPath = Utils.GetApplicationBase(Utils.DefaultPowerShellShellID);
             if (defaultPSPath != null &&
                 !result.Contains(defaultPSPath) &&
                 Directory.Exists(defaultPSPath))
@@ -276,27 +292,6 @@ namespace System.Management.Automation
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Helper method which returns the default monad installation path based on ShellID
-        /// registry key.
-        /// </summary>
-        /// <returns>string representing path.</returns>
-        /// <remarks>
-        /// If ShellID is not defined or Path property is not defined returns null.
-        /// </remarks>
-        private static string GetMshDefaultInstallationPath()
-        {
-            string returnValue = CommandDiscovery.GetShellPathFromRegistry(Utils.DefaultPowerShellShellID);
-
-            if (returnValue != null)
-            {
-                returnValue = Path.GetDirectoryName(returnValue);
-            }
-
-            // returnValue can be null.
-            return returnValue;
         }
 
         #endregion
@@ -337,12 +332,11 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Get the file in different search paths corresponding to current culture. 
-        /// 
+        /// Get the file in different search paths corresponding to current culture.
+        ///
         /// The file name to search is the filename part of path parameter. (Normally path
-        /// parameter should contain only the filename part. But it is possible for 
-        /// RunspaceConfiguration to directly specify a hard coded path for help file there).
-        /// 
+        /// parameter should contain only the filename part).
+        ///
         /// </summary>
         /// <param name="file">This is the path to the file. If it has a path, we need to search under that path first</param>
         /// <param name="searchPaths">Additional search paths</param>

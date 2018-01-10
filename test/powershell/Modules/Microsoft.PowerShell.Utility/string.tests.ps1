@@ -3,14 +3,20 @@
         BeforeAll {
             $sep = [io.path]::DirectorySeparatorChar
             $fileName = New-Item 'TestDrive:\selectStr[ingLi]teralPath.txt'
-            "abc" | Out-File -LiteralPath $fileName.fullname            
+            "abc" | Out-File -LiteralPath $fileName.fullname
 	        "bcd" | Out-File -LiteralPath $fileName.fullname -Append
 	        "cde" | Out-File -LiteralPath $fileName.fullname -Append
 
             $fileNameWithDots = $fileName.FullName.Replace("\", "\.\")
-            
-            $tempFile = New-TemporaryFile            
-            "abc" | Out-File -LiteralPath $tempFile.fullname            
+
+            $subDirName = Join-Path $TestDrive 'selectSubDir'
+            New-Item -Path $subDirName -ItemType Directory -Force > $null
+            $pathWithoutWildcard = $TestDrive
+            $pathWithWildcard = Join-Path $TestDrive '*'
+
+            # Here Get-ChildItem adds 'PSDrive' property
+            $tempFile = New-TemporaryFile | Get-Item
+            "abc" | Out-File -LiteralPath $tempFile.fullname
 	        "bcd" | Out-File -LiteralPath $tempFile.fullname -Append
 	        "cde" | Out-File -LiteralPath $tempFile.fullname -Append
             $driveLetter = $tempFile.PSDrive.Name
@@ -24,19 +30,27 @@
             Pop-Location
         }
 
+        It "Select-String does not throw on subdirectory (path without wildcard)" {
+            { select-string -Path  $pathWithoutWildcard "noExists" -ErrorAction Stop } | Should Not Throw
+        }
+
+        It "Select-String does not throw on subdirectory (path with wildcard)" {
+            { select-string -Path  $pathWithWildcard "noExists" -ErrorAction Stop } | Should Not Throw
+        }
+
         It "LiteralPath with relative path" {
-            (select-string -LiteralPath (Get-Item -LiteralPath $fileName).Name "b").count | Should Be 2	    
-        } 
-
-        It "LiteralPath with absolute path" {	        
-            (select-string -LiteralPath $fileName "b").count | Should Be 2	    
+            (select-string -LiteralPath (Get-Item -LiteralPath $fileName).Name "b").count | Should Be 2
         }
 
-        It "LiteralPath with dots in path" {	        
-            (select-string -LiteralPath $fileNameWithDots "b").count | Should Be 2	    
+        It "LiteralPath with absolute path" {
+            (select-string -LiteralPath $fileName "b").count | Should Be 2
         }
 
-        It "Network path" -skip:($IsCoreCLR) {
+        It "LiteralPath with dots in path" {
+            (select-string -LiteralPath $fileNameWithDots "b").count | Should Be 2
+        }
+
+        It "Network path" -skip:(!$IsWindows) {
             (select-string -LiteralPath $fileNameAsNetworkPath "b").count | Should Be 2
         }
 
@@ -52,9 +66,9 @@
 
         It "match object supports RelativePath method" {
             $file = "Modules${sep}Microsoft.PowerShell.Utility${sep}Microsoft.PowerShell.Utility.psd1"
-            
+
             $match = Select-String CmdletsToExport $pshome/$file
-            
+
             $match.RelativePath($pshome) | Should Be $file
             $match.RelativePath($pshome.ToLower()) | Should Be $file
             $match.RelativePath($pshome.ToUpper()) | Should Be $file

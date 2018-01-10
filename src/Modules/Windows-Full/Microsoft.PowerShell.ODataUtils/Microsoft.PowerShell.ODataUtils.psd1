@@ -1,4 +1,4 @@
-﻿#
+#
 # Module manifest for module 'Microsoft.PowerShell.ODataUtils'
 #
 # Generated on: 8/15/2013
@@ -22,7 +22,7 @@ Author = 'Microsoft Corporation'
 CompanyName = 'Microsoft Corporation'
 
 # Copyright statement for this module
-Copyright = '(c) 2014 Microsoft. All rights reserved.'
+Copyright = 'Copyright (c) Microsoft Corporation. All rights reserved.'
 
 # Description of the functionality provided by this module
 # Description = ''
@@ -85,7 +85,7 @@ AliasesToExport = ''
 # PrivateData = ''
 
 # HelpInfo URI of this module
-HelpInfoURI = 'http://go.microsoft.com/fwlink/?LinkId=509916'
+HelpInfoURI = 'https://go.microsoft.com/fwlink/?LinkId=509916'
 
 # Default prefix for commands exported from this module. Override the default prefix using Import-Module -Prefix.
 # DefaultCommandPrefix = ''

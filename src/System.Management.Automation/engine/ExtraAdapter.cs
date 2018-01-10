@@ -1,10 +1,9 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections;
 using System.Collections.Generic;
-using System.Data;
 using System.DirectoryServices;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -16,220 +15,6 @@ using Microsoft.PowerShell;
 namespace System.Management.Automation
 {
     /// <summary>
-    /// Deals with DataRow objects
-    /// </summary>
-    internal class DataRowAdapter : PropertyOnlyAdapter
-    {
-        #region virtual
-        /// <summary>
-        /// Retrieves all the properties available in the object.
-        /// </summary>
-        /// <param name="obj">object to get all the property information from</param>
-        /// <param name="members">collection where the members will be added</param>
-        protected override void DoAddAllProperties<T>(object obj, PSMemberInfoInternalCollection<T> members)
-        {
-            DataRow dataRow = (DataRow)obj;
-            if (dataRow.Table == null || dataRow.Table.Columns == null)
-            {
-                return;
-            }
-
-            foreach (DataColumn property in dataRow.Table.Columns)
-            {
-                members.Add(new PSProperty(property.ColumnName, this, obj, property.ColumnName) as T);
-            }
-
-            return;
-        }
-        /// <summary>
-        /// Returns null if propertyName is not a property in the adapter or
-        /// the corresponding PSProperty with its adapterData set to information
-        /// to be used when retrieving the property.
-        /// </summary>
-        /// <param name="obj">object to retrieve the PSProperty from</param>
-        /// <param name="propertyName">name of the property to be retrieved</param>
-        /// <returns>The PSProperty corresponding to propertyName from obj</returns>
-        protected override PSProperty DoGetProperty(object obj, string propertyName)
-        {
-            DataRow dataRow = (DataRow)obj;
-
-            if (!dataRow.Table.Columns.Contains(propertyName))
-            {
-                return null;
-            }
-
-            string columnName = dataRow.Table.Columns[propertyName].ColumnName;
-            return new PSProperty(columnName, this, obj, columnName);
-        }
-
-        /// <summary>
-        /// Returns the name of the type corresponding to the property
-        /// </summary>
-        /// <param name="property">PSProperty obtained in a previous DoGetProperty</param>
-        /// <param name="forDisplay">True if the result is for display purposes only</param>
-        /// <returns>the name of the type corresponding to the property</returns>
-        protected override string PropertyType(PSProperty property, bool forDisplay)
-        {
-            string columnName = (string)property.adapterData;
-            DataRow dataRow = (DataRow)property.baseObject;
-            var dataType = dataRow.Table.Columns[columnName].DataType;
-            return forDisplay ? ToStringCodeMethods.Type(dataType) : dataType.FullName;
-        }
-
-        /// <summary>
-        /// Returns true if the property is settable
-        /// </summary>
-        /// <param name="property">property to check</param>
-        /// <returns>true if the property is settable</returns>
-        protected override bool PropertyIsSettable(PSProperty property)
-        {
-            string columnName = (string)property.adapterData;
-            DataRow dataRow = (DataRow)property.baseObject;
-            return !dataRow.Table.Columns[columnName].ReadOnly;
-        }
-
-        /// <summary>
-        /// Returns true if the property is gettable
-        /// </summary>
-        /// <param name="property">property to check</param>
-        /// <returns>true if the property is gettable</returns>
-        protected override bool PropertyIsGettable(PSProperty property)
-        {
-            return true;
-        }
-
-
-        /// <summary>
-        /// Returns the value from a property coming from a previous call to DoGetProperty
-        /// </summary>
-        /// <param name="property">PSProperty coming from a previous call to DoGetProperty</param>
-        /// <returns>The value of the property</returns>
-        protected override object PropertyGet(PSProperty property)
-        {
-            DataRow dataRow = (DataRow)property.baseObject;
-            return dataRow[(string)property.adapterData];
-        }
-        /// <summary>
-        /// Sets the value of a property coming from a previous call to DoGetProperty
-        /// </summary>
-        /// <param name="property">PSProperty coming from a previous call to DoGetProperty</param>
-        /// <param name="setValue">value to set the property with</param>
-        /// <param name="convertIfPossible">instructs the adapter to convert before setting, if the adapter suports conversion</param>
-        protected override void PropertySet(PSProperty property, object setValue, bool convertIfPossible)
-        {
-            DataRow dataRow = (DataRow)property.baseObject;
-            dataRow[(string)property.adapterData] = setValue;
-            return;
-        }
-        #endregion virtual
-    }
-    /// <summary>
-    /// Deals with DataRowView objects
-    /// </summary>
-    internal class DataRowViewAdapter : PropertyOnlyAdapter
-    {
-        #region virtual
-        /// <summary>
-        /// Retrieves all the properties available in the object.
-        /// </summary>
-        /// <param name="obj">object to get all the property information from</param>
-        /// <param name="members">collection where the members will be added</param>
-        protected override void DoAddAllProperties<T>(object obj, PSMemberInfoInternalCollection<T> members)
-        {
-            DataRowView dataRowView = (DataRowView)obj;
-            if (dataRowView.Row == null || dataRowView.Row.Table == null || dataRowView.Row.Table.Columns == null)
-            {
-                return;
-            }
-
-            foreach (DataColumn property in dataRowView.Row.Table.Columns)
-            {
-                members.Add(new PSProperty(property.ColumnName, this, obj, property.ColumnName) as T);
-            }
-
-            return;
-        }
-        /// <summary>
-        /// Returns null if propertyName is not a property in the adapter or
-        /// the corresponding PSProperty with its adapterData set to information
-        /// to be used when retrieving the property.
-        /// </summary>
-        /// <param name="obj">object to retrieve the PSProperty from</param>
-        /// <param name="propertyName">name of the property to be retrieved</param>
-        /// <returns>The PSProperty corresponding to propertyName from obj</returns>
-        protected override PSProperty DoGetProperty(object obj, string propertyName)
-        {
-            DataRowView dataRowView = (DataRowView)obj;
-
-            if (!dataRowView.Row.Table.Columns.Contains(propertyName))
-            {
-                return null;
-            }
-            string columnName = dataRowView.Row.Table.Columns[propertyName].ColumnName;
-            return new PSProperty(columnName, this, obj, columnName);
-        }
-
-        /// <summary>
-        /// Returns the name of the type corresponding to the property
-        /// </summary>
-        /// <param name="property">PSProperty obtained in a previous DoGetProperty</param>
-        /// <param name="forDisplay">True if the result is for display purposes only</param>
-        /// <returns>the name of the type corresponding to the property</returns>
-        protected override string PropertyType(PSProperty property, bool forDisplay)
-        {
-            string columnName = (string)property.adapterData;
-            DataRowView dataRowView = (DataRowView)property.baseObject;
-            var dataType = dataRowView.Row.Table.Columns[columnName].DataType;
-            return forDisplay ? ToStringCodeMethods.Type(dataType) : dataType.FullName;
-        }
-
-        /// <summary>
-        /// Returns true if the property is settable
-        /// </summary>
-        /// <param name="property">property to check</param>
-        /// <returns>true if the property is settable</returns>
-        protected override bool PropertyIsSettable(PSProperty property)
-        {
-            string columnName = (string)property.adapterData;
-            DataRowView dataRowView = (DataRowView)property.baseObject;
-            return !dataRowView.Row.Table.Columns[columnName].ReadOnly;
-        }
-
-        /// <summary>
-        /// Returns true if the property is gettable
-        /// </summary>
-        /// <param name="property">property to check</param>
-        /// <returns>true if the property is gettable</returns>
-        protected override bool PropertyIsGettable(PSProperty property)
-        {
-            return true;
-        }
-
-        /// <summary>
-        /// Returns the value from a property coming from a previous call to DoGetProperty
-        /// </summary>
-        /// <param name="property">PSProperty coming from a previous call to DoGetProperty</param>
-        /// <returns>The value of the property</returns>
-        protected override object PropertyGet(PSProperty property)
-        {
-            DataRowView dataRowView = (DataRowView)property.baseObject;
-            return dataRowView[(string)property.adapterData];
-        }
-        /// <summary>
-        /// Sets the value of a property coming from a previous call to DoGetProperty
-        /// </summary>
-        /// <param name="property">PSProperty coming from a previous call to DoGetProperty</param>
-        /// <param name="setValue">value to set the property with</param>
-        /// <param name="convertIfPossible">instructs the adapter to convert before setting, if the adapter suports conversion</param>
-        protected override void PropertySet(PSProperty property, object setValue, bool convertIfPossible)
-        {
-            DataRowView dataRowView = (DataRowView)property.baseObject;
-            dataRowView[(string)property.adapterData] = setValue;
-            return;
-        }
-        #endregion virtual
-    }
-    /// <summary>
     /// Deals with DirectoryEntry objects
     /// </summary>
     internal class DirectoryEntryAdapter : DotNetAdapter
@@ -237,7 +22,7 @@ namespace System.Management.Automation
         #region private data
         // DirectoryEntry(DE) adapter needs dotnet adapter as DE adapter
         // don't know the underlying native adsi object's method metadata.
-        // In the MethodInvoke() call, this adapter first calls 
+        // In the MethodInvoke() call, this adapter first calls
         // native adsi object's method, if there is a failure it calls
         // dotnet method (if one available).
         // This ensures dotnet methods are available on the adapted object.
@@ -271,7 +56,7 @@ namespace System.Management.Automation
             // and catch an eventual exception.
             // Specifically for "LDAP://RootDse" there are some cases where calling
             // InvokeGet will throw COMException for existing properties like defaultNamingContext.
-            // Having a call to entry.Properties[propertyName] fixes the RootDse problem. 
+            // Having a call to entry.Properties[propertyName] fixes the RootDse problem.
             // Calling entry.RefreshCache() also fixes the RootDse problem.
             try
             {
@@ -285,9 +70,8 @@ namespace System.Management.Automation
 
                 property = new PSProperty(collection.PropertyName, this, obj, valueToTake);
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                CommandProcessorBase.CheckForSevereException(e);
                 property = null;
             }
 #pragma warning restore 56500
@@ -314,14 +98,14 @@ namespace System.Management.Automation
                     // Adapter engine resolve's members in the following steps:
                     //  1. Extended members -> 2. Adapted members -> 3. Dotnet members
                     // We cannot say from DirectoryEntryAdapter if a method with name "memberName"
-                    // is available. So check if a DotNet proeperty with the same name is available
+                    // is available. So check if a DotNet property with the same name is available
                     // If yes, return null from the adapted view and let adapter engine
                     // take care of DotNet member resolution. If not, assume memberName method
                     // is available on native adsi object.
                     // In case of collisions between Dotnet Property and adsi native object methods,
                     // Dotnet wins. Looking through IADs com interfaces there doesn't appear
                     // to be a collision like this.
-                    // Powershell Parser will call only GetMember<PSMemberInfo>, so here 
+                    // Powershell Parser will call only GetMember<PSMemberInfo>, so here
                     // we cannot distinguish if the caller is looking for a property or a
                     // method.
                     #endregion
@@ -341,7 +125,7 @@ namespace System.Management.Automation
         /// in the first call to GetMember and GetMembers so that subsequent
         /// calls can use the cache.
         /// In the case of the .NET adapter that would be a cache from the .NET type to
-        /// the public properties and fields available in that type. 
+        /// the public properties and fields available in that type.
         /// In the case of the DirectoryEntry adapter, this could be a cache of the objectClass
         /// to the properties available in it.
         /// </summary>
@@ -365,9 +149,8 @@ namespace System.Management.Automation
             {
                 countOfProperties = entry.Properties.PropertyNames.Count;
             }
-            catch (Exception e) // swallow all non-severe exceptions
+            catch (Exception) // swallow all non-severe exceptions
             {
-                CommandProcessorBase.CheckForSevereException(e);
             }
 #pragma warning restore 56500
 
@@ -400,7 +183,7 @@ namespace System.Management.Automation
         /// </summary>
         /// <param name="property">PSProperty coming from a previous call to GetMember</param>
         /// <param name="setValue">value to set the property with</param>
-        /// <param name="convertIfPossible">instructs the adapter to convert before setting, if the adapter suports conversion</param>
+        /// <param name="convertIfPossible">instructs the adapter to convert before setting, if the adapter supports conversion</param>
         protected override void PropertySet(PSProperty property, object setValue, bool convertIfPossible)
         {
             PropertyValueCollection values = property.adapterData as PropertyValueCollection;
@@ -416,9 +199,9 @@ namespace System.Management.Automation
                 {
                     if (e.ErrorCode != unchecked((int)0x80004005) || (setValue == null))
                         // When clear is called, DirectoryEntry calls PutEx on AD object with Clear option and Null Value
-                        // WinNT provider throws E_FAIL when null value is specified though actually ADS_PROPERTY_CLEAR option is used, 
-                        // we need to catch  this exception here. 
-                        // But at the same time we don't want to catch the exception if user explicitly sets the value to null.                                                                                                                  
+                        // WinNT provider throws E_FAIL when null value is specified though actually ADS_PROPERTY_CLEAR option is used,
+                        // we need to catch this exception here.
+                        // But at the same time we don't want to catch the exception if user explicitly sets the value to null.
                         throw;
                 }
 
@@ -539,7 +322,7 @@ namespace System.Management.Automation
             // First try to invoke method on the native adsi object. If the method
             // call fails, try to invoke dotnet method with same name, if one available.
             // This will ensure dotnet methods are exposed for DE objects.
-            // The problem is in GetMemeber<T>(), DE adapter cannot check if a requested
+            // The problem is in GetMember<T>(), DE adapter cannot check if a requested
             // method is available as it doesn't have access to native adsi object's
             // method metadata. So GetMember<T> returns PSMethod assuming a method
             // is available. This behavior will never give a chance to dotnet adapter

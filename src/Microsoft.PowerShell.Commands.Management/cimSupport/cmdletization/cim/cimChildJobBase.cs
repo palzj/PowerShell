@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -14,13 +14,6 @@ using Microsoft.Management.Infrastructure;
 using Microsoft.Management.Infrastructure.Options;
 using Microsoft.PowerShell.Cim;
 using Dbg = System.Management.Automation.Diagnostics;
-
-#if CORECLR
-// Some APIs are missing from System.Environment. We use System.Management.Automation.Environment as a proxy type:
-//  - for missing APIs, System.Management.Automation.Environment has extension implementation.
-//  - for existing APIs, System.Management.Automation.Environment redirect the call to System.Environment.
-using Environment = System.Management.Automation.Environment;
-#endif
 
 namespace Microsoft.PowerShell.Cmdletization.Cim
 {
@@ -115,7 +108,7 @@ namespace Microsoft.PowerShell.Cmdletization.Cim
             }
 
             WsManErrorCode wsManErrorCode = (WsManErrorCode)(UInt32)(errorCodeProperty.Value);
-            switch (wsManErrorCode) // error codes that should result in sleep-and-retry are based on an email from Ryan 
+            switch (wsManErrorCode) // error codes that should result in sleep-and-retry are based on an email from Ryan
             {
                 case WsManErrorCode.ERROR_WSMAN_QUOTA_MAX_SHELLS:
                 case WsManErrorCode.ERROR_WSMAN_QUOTA_MAX_OPERATIONS:
@@ -232,8 +225,8 @@ namespace Microsoft.PowerShell.Cmdletization.Cim
         {
             get
             {
-                // this.JobContext is set in the constructor of CimChildJobBase, 
-                // but the constructor of Job wants to access Location property 
+                // this.JobContext is set in the constructor of CimChildJobBase,
+                // but the constructor of Job wants to access Location property
                 // before CimChildJobBase is fully initialized
                 if (this.JobContext == null)
                 {
@@ -924,7 +917,7 @@ namespace Microsoft.PowerShell.Cmdletization.Cim
             Dbg.Assert(
                 (this.JobContext.ShouldProcessOptimization != MshCommandRuntime.ShouldProcessPossibleOptimization.AutoYes_CanSkipShouldProcessCall) ||
                 (this.JobContext.CmdletInvocationContext.CmdletDefinitionContext.ClientSideShouldProcess),
-                "MI layer should not call us when AutoYes_CanSkipShouldProcesCall optimization is in effect");
+                "MI layer should not call us when AutoYes_CanSkipShouldProcessCall optimization is in effect");
             Exception exceptionThrownOnCmdletThread;
             ShouldProcessReason shouldProcessReason;
             bool shouldProcessResponse = this.ShouldProcess(verboseDescription, verboseWarning, caption, out shouldProcessReason, out exceptionThrownOnCmdletThread);

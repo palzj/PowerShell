@@ -1,5 +1,5 @@
 /*============================================================================
- * Copyright (C) Microsoft Corporation, All rights reserved. 
+ * Copyright (c) Microsoft Corporation. All rights reserved.
  *============================================================================
  */
 
@@ -161,7 +161,7 @@ namespace Microsoft.Management.Infrastructure.CimCmdlets
         /// <param name="computerName"></param>
         /// <param name="nameSpace"></param>
         /// <param name="queryExpression"></param>
-        /// <param name="opreationTimeout"></param>
+        /// <param name="operationTimeout"></param>
         public CimIndicationWatcher(
             string computerName,
             string theNamespace,
@@ -183,7 +183,7 @@ namespace Microsoft.Management.Infrastructure.CimCmdlets
         /// <param name="cimSession"></param>
         /// <param name="nameSpace"></param>
         /// <param name="queryExpression"></param>
-        /// <param name="opreationTimeout"></param>
+        /// <param name="operationTimeout"></param>
         public CimIndicationWatcher(
             CimSession cimSession,
             string theNamespace,
@@ -208,7 +208,7 @@ namespace Microsoft.Management.Infrastructure.CimCmdlets
             string theNameSpace,
             string theQueryDialect,
             string theQueryExpression,
-            UInt32 theOpreationTimeout)
+            UInt32 theOperationTimeout)
         {
             enableRaisingEvents = false;
             status = Status.Default;
@@ -220,13 +220,13 @@ namespace Microsoft.Management.Infrastructure.CimCmdlets
             this.nameSpace = theNameSpace;
             this.queryDialect = ConstValue.GetQueryDialectWithDefault(theQueryDialect);
             this.queryExpression = theQueryExpression;
-            this.opreationTimeout = theOpreationTimeout;
+            this.operationTimeout = theOperationTimeout;
             this.computerName = theComputerName;
         }
 
         /// <summary>
         /// <para>
-        /// Hanlder of new subscription result
+        /// Handler of new subscription result
         /// </para>
         /// </summary>
         /// <param name="src"></param>
@@ -258,9 +258,7 @@ namespace Microsoft.Management.Infrastructure.CimCmdlets
         /// If set EnableRaisingEvents to false, which will be ignored
         /// </para>
         /// </summary>
-#if !CORECLR
         [BrowsableAttribute(false)]
-#endif
         public bool EnableRaisingEvents
         {
             get
@@ -299,7 +297,7 @@ namespace Microsoft.Management.Infrastructure.CimCmdlets
                             this.nameSpace,
                             this.queryDialect,
                             this.queryExpression,
-                            this.opreationTimeout);
+                            this.operationTimeout);
                     }
                     else
                     {
@@ -308,7 +306,7 @@ namespace Microsoft.Management.Infrastructure.CimCmdlets
                             this.nameSpace,
                             this.queryDialect,
                             this.queryExpression,
-                            this.opreationTimeout);
+                            this.operationTimeout);
                     }
                     status = Status.Started;
                 }
@@ -392,7 +390,7 @@ namespace Microsoft.Management.Infrastructure.CimCmdlets
         private string nameSpace;
         private string queryDialect;
         private string queryExpression;
-        private UInt32 opreationTimeout;
+        private UInt32 operationTimeout;
         #endregion
         #endregion
     }

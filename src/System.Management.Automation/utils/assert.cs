@@ -1,23 +1,18 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 // The define below is only valid for this file. It allows the methods
 // defined here to call Diagnostics.Assert when only ASSERTIONS_TRACE is defined
 // Any #if DEBUG is pointless (always true) in this file because of this declaration.
 // The presence of the define will cause the System.Diagnostics.Debug.Asser calls
-// allways to be compiled in for this file. What can be compiled out are the calls to
+// always to be compiled in for this file. What can be compiled out are the calls to
 // System.Management.Automation.Diagnostics.Assert in other files when neither DEBUG
 // nor ASSERTIONS_TRACE is defined.
 #define DEBUG
 
 using System.Diagnostics;
 using System.Text;
-
-#if CORECLR
-// Use stub for SystemException.
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
 
 namespace System.Management.Automation
 {
@@ -63,7 +58,6 @@ namespace System.Management.Automation
     {
         internal static string StackTrace(int framesToSkip)
         {
-#if !CORECLR //TODO:CORECLR StackTrace - unable to get stack trace
             StackTrace trace = new StackTrace(true);
             StackFrame[] frames = trace.GetFrames();
             StringBuilder frameString = new StringBuilder();
@@ -75,9 +69,6 @@ namespace System.Management.Automation
                 frameString.Append(frame.ToString());
             }
             return frameString.ToString();
-#else
-            return string.Empty;
-#endif
         }
 
         private static object s_throwInsteadOfAssertLock = 1;
@@ -115,7 +106,7 @@ namespace System.Management.Automation
         /// Basic assertion with logical condition and message
         /// </summary>
         /// <param name="condition">
-        /// logical condtion that should be true for program to proceed
+        /// logical condition that should be true for program to proceed
         /// </param>
         /// <param name="whyThisShouldNeverHappen">
         /// Message to explain why condition should always be true
@@ -144,7 +135,7 @@ namespace System.Management.Automation
         /// Basic assertion with logical condition, message and detailed message
         /// </summary>
         /// <param name="condition">
-        /// logical condtion that should be true for program to proceed
+        /// logical condition that should be true for program to proceed
         /// </param>
         /// <param name="whyThisShouldNeverHappen">
         /// Message to explain why condition should always be true
@@ -196,9 +187,6 @@ namespace System.Management.Automation
                 builder.Append(Diagnostics.StackTrace(2));
                 tracer.TraceError(builder.ToString());
             }
-#elif CORECLR // Debug.Fail is not in CoreCLR
-            string assertionMessage = "ASSERT: " + whyThisShouldNeverHappen + "  " + detailMessage + " ";
-            throw new AssertException(assertionMessage);
 #else
             if (Diagnostics.ThrowInsteadOfAssert)
             {

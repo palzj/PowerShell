@@ -1,6 +1,6 @@
 //-----------------------------------------------------------------------
-// <copyright file="DscResourceInfo.cs" company="Microsoft Corporation">
-//     Copyright (C) 2013 Microsoft Corporation
+// <copyright company="Microsoft Corporation">
+//     Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ namespace System.Management.Automation
         /// <summary>
         /// Initializes a new instance of the PSClassInfo class
         /// </summary>
-        /// <param name="name">Name of the PS Class.</param>        
+        /// <param name="name">Name of the PS Class.</param>
         internal PSClassInfo(string name)
         {
             this.Name = name;

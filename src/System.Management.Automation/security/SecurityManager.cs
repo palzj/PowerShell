@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using Dbg = System.Management.Automation;
@@ -14,15 +14,9 @@ using System.Management.Automation.Language;
 using System.Security;
 using System.Security.Cryptography.X509Certificates;
 
-#if CORECLR
-// Use stub for SecurityZone
-using Microsoft.PowerShell.CoreClr.Stubs;
-using Environment = System.Management.Automation.Environment;
-#endif
-
 namespace Microsoft.PowerShell
 {
-    /// <summary> 
+    /// <summary>
     /// Defines the authorization policy that controls the way scripts
     /// (and other command types) are handled by Monad.  This authorization
     /// policy enforces one of four levels, as defined by the 'ExecutionPolicy'
@@ -31,7 +25,7 @@ namespace Microsoft.PowerShell
     /// In priority-order (highest priority first,) these come from:
     ///
     ///    - Machine-wide Group Policy
-    ///    HKLM\Software\Policies\Microsoft\Windows\PowerShell 
+    ///    HKLM\Software\Policies\Microsoft\Windows\PowerShell
     ///    - Current-user Group Policy
     ///    HKCU\Software\Policies\Microsoft\Windows\PowerShell.
     ///    - Current session preference
@@ -40,24 +34,24 @@ namespace Microsoft.PowerShell
     ///    HKEY_CURRENT_USER\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell
     ///    - Local machine preference
     ///    HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell
-    /// 
-    /// Restricted - All .ps1 files are blocked.  ps1xml files must be digitally 
+    ///
+    /// Restricted - All .ps1 files are blocked.  ps1xml files must be digitally
     ///    signed, and by a trusted publisher.  If you haven't made a trust decision
     ///    on the publisher yet, prompting is done as in AllSigned mode.
     /// AllSigned - All .ps1 and .ps1xml files must be digitally signed.  If
-    ///    signed and executed, Monad prompts to determine if files from the 
+    ///    signed and executed, Monad prompts to determine if files from the
     ///    signing publisher should be run or not.
     /// RemoteSigned - Only .ps1 and .ps1xml files originating from the internet
-    ///    must be digitally signed.  If remote, signed, and executed, Monad 
-    ///    prompts to determine if files from the signing publisher should be 
+    ///    must be digitally signed.  If remote, signed, and executed, Monad
+    ///    prompts to determine if files from the signing publisher should be
     ///    run or not.  This is the default setting.
     /// Unrestricted - No files must be signed.  If a file originates from the
     ///    internet, Monad provides a warning prompt to alert the user.  To
-    ///    supress this warning message, right-click on the file in File Explorer,
-    ///    select "Properties," and then "Unblock."
+    ///    suppress this warning message, right-click on the file in File Explorer,
+    ///    select "Properties," and then "Unblock."  Requires Shell.
     /// Bypass - No files must be signed, and internet origin is not verified
-    /// 
-    /// </summary>    
+    ///
+    /// </summary>
     public sealed class PSAuthorizationManager : AuthorizationManager
     {
         internal enum RunPromptDecision
@@ -142,10 +136,6 @@ namespace Microsoft.PowerShell
             if (!IsSupportedExtension(fi.Extension))
                 return true;
 
-            // Product binaries are always trusted
-            if (SecuritySupport.IsProductBinary(path))
-                return true;
-
             // Get the execution policy
             _executionPolicy = SecuritySupport.GetExecutionPolicy(_shellId);
 
@@ -195,6 +185,11 @@ namespace Microsoft.PowerShell
 #endif
             if (_executionPolicy == ExecutionPolicy.Unrestricted)
             {
+                // Product binaries are always trusted
+                // This avoids signature and security zone checks
+                if (SecuritySupport.IsProductBinary(path))
+                    return true;
+
                 // We need to give the "Remote File" warning
                 // if the file originated from the internet
                 if (!IsLocalFile(fi.FullName))
@@ -296,7 +291,7 @@ namespace Microsoft.PowerShell
                         policyCheckPassed = SetPolicyFromAuthenticodePrompt(path, host, ref reason, signature);
                     }
                 }
-                // The file is UnknownError, NotSigned, HashMismatch, 
+                // The file is UnknownError, NotSigned, HashMismatch,
                 // NotTrusted, NotSupportedFileFormat
                 else
                 {
@@ -329,8 +324,8 @@ namespace Microsoft.PowerShell
                 if (String.Equals(fi.Extension, ".ps1xml", StringComparison.OrdinalIgnoreCase))
                 {
                     string[] trustedDirectories = new string[]
-                        { Environment.GetFolderPath(Environment.SpecialFolder.System),
-                          Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
+                        { Platform.GetFolderPath(Environment.SpecialFolder.System),
+                          Platform.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
                         };
 
                     foreach (string trustedDirectory in trustedDirectories)
@@ -408,6 +403,9 @@ namespace Microsoft.PowerShell
 
         private bool IsLocalFile(string filename)
         {
+#if UNIX
+            return true;
+#else
             SecurityZone zone = ClrFacade.GetFileSecurityZone(filename);
 
             if (zone == SecurityZone.MyComputer ||
@@ -418,6 +416,7 @@ namespace Microsoft.PowerShell
             }
 
             return false;
+#endif
         }
 
         // Checks that a publisher is trusted by the system or is one of
@@ -552,7 +551,7 @@ namespace Microsoft.PowerShell
         /// If access is denied, this parameter provides a specialized
         /// Exception as the reason.
         /// </param>
-        /// 
+        ///
         /// <returns>
         /// True if the command should be run.  False otherwise.
         /// </returns>
@@ -561,11 +560,11 @@ namespace Microsoft.PowerShell
         /// CommandInfo is invalid. This may occur if
         /// commandInfo.Name is null or empty.
         /// </exception>
-        /// 
+        ///
         /// <exception cref="System.ArgumentNullException">
         /// CommandInfo is null.
         /// </exception>
-        /// 
+        ///
         /// <exception cref="System.IO.FileNotFoundException">
         /// The file specified by commandInfo.Path is not found.
         /// </exception>

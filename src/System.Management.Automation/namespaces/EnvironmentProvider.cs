@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 
@@ -11,20 +11,13 @@ using System.Collections.ObjectModel;
 using System.Management.Automation;
 using System.Management.Automation.Provider;
 
-#if CORECLR
-// Some APIs are missing from System.Environment. We use System.Management.Automation.Environment as a proxy type:
-//  - for missing APIs, System.Management.Automation.Environment has extension implementation.
-//  - for existing APIs, System.Management.Automation.Environment redirect the call to System.Environment.
-using Environment = System.Management.Automation.Environment;
-#endif
-
 namespace Microsoft.PowerShell.Commands
 {
     /// <summary>
     /// This provider is the data accessor for environment variables. It uses
     /// the SessionStateProviderBase as the base class to produce a view on
     /// session state data.
-    /// </summary>    
+    /// </summary>
     [CmdletProvider(EnvironmentProvider.ProviderName, ProviderCapabilities.ShouldProcess)]
     public sealed class EnvironmentProvider : SessionStateProviderBase
     {
@@ -80,15 +73,15 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Gets a environment variable from session state
         /// </summary>
-        /// 
+        ///
         /// <param name="name">
         /// The name of the environment variable to retrieve.
         /// </param>
-        /// 
+        ///
         /// <returns>
         /// A DictionaryEntry that represents the value of the environment variable.
         /// </returns>
-        /// 
+        ///
         internal override object GetSessionStateItem(string name)
         {
             Dbg.Diagnostics.Assert(
@@ -109,19 +102,19 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Sets the environment variable of the specified name to the specified value
         /// </summary>
-        /// 
+        ///
         /// <param name="name">
         /// The name of the environment variable to set.
         /// </param>
-        /// 
+        ///
         /// <param name="value">
         /// The new value for the environment variable.
         /// </param>
-        /// 
+        ///
         /// <param name="writeItem">
         /// If true, the item that was set should be written to WriteItemObject.
         /// </param>
-        /// 
+        ///
         internal override void SetSessionStateItem(string name, object value, bool writeItem)
         {
             Dbg.Diagnostics.Assert(
@@ -165,11 +158,11 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Removes the specified environment variable from session state.
         /// </summary>
-        /// 
+        ///
         /// <param name="name">
         /// The name of the environment variable to remove from session state.
         /// </param>
-        /// 
+        ///
         internal override void RemoveSessionStateItem(string name)
         {
             Dbg.Diagnostics.Assert(
@@ -182,12 +175,12 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Gets a flattened view of the environment variables in session state
         /// </summary>
-        /// 
+        ///
         /// <returns>
         /// An IDictionary representing the flattened view of the environment variables in
         /// session state.
         /// </returns>
-        /// 
+        ///
         internal override IDictionary GetSessionStateTable()
         {
             // Environment variables are case-sensitive on Unix and
@@ -200,7 +193,7 @@ namespace Microsoft.PowerShell.Commands
                 new Dictionary<string, DictionaryEntry>(StringComparer.OrdinalIgnoreCase);
 #endif
 
-            // The environment variables returns a dictionary of keys and values that are 
+            // The environment variables returns a dictionary of keys and values that are
             // both strings. We want to return a dictionary with the key as a string and
             // the value as the DictionaryEntry containing both the name and env variable
             // value.
@@ -217,15 +210,15 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Gets the Value property of the DictionaryEntry item
         /// </summary>
-        /// 
+        ///
         /// <param name="item">
         /// The item to get the value from.
         /// </param>
-        /// 
+        ///
         /// <returns>
         /// The value of the item.
         /// </returns>
-        /// 
+        ///
         internal override object GetValueOfItem(object item)
         {
             Dbg.Diagnostics.Assert(

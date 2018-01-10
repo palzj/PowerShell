@@ -1,5 +1,5 @@
 /********************************************************************++
- * Copyright (c) Microsoft Corporation.  All rights reserved.
+ * Copyright (c) Microsoft Corporation. All rights reserved.
  * --********************************************************************/
 
 using System.Management.Automation.Remoting;
@@ -7,7 +7,7 @@ using System.Management.Automation.Remoting;
 namespace System.Management.Automation
 {
     /// <summary>
-    /// This abstract class is designed to provide InstandId and self identification for
+    /// This abstract class is designed to provide InstanceId and self identification for
     /// client and server remote session classes.
     /// </summary>
     internal abstract class RemoteSession

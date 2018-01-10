@@ -4,9 +4,8 @@ using System.IO;
 using System.Diagnostics;
 using System.Management.Automation;
 
-namespace PSTests
+namespace PSTests.Parallel
 {
-    [Collection("AssemblyLoadContext")]
     public static class PlatformTests
     {
         [Fact]
@@ -15,6 +14,7 @@ namespace PSTests
             Assert.True(Platform.IsCoreCLR);
         }
 
+#if Unix
         [Fact]
         public static void TestGetUserName()
         {
@@ -38,7 +38,7 @@ namespace PSTests
             }
         }
 
-        [Fact(Skip="Bad arguments for OS X")]
+        [Fact]
         public static void TestGetMachineName()
         {
             var startInfo = new ProcessStartInfo
@@ -57,11 +57,11 @@ namespace PSTests
                 // The process should return an exit code of 0 on success
                 Assert.Equal(0, process.ExitCode);
                 // It should be the same as what our platform code returns
-                Assert.Equal(hostname, System.Management.Automation.Environment.MachineName);
+                Assert.Equal(hostname, Environment.MachineName);
             }
         }
 
-        [Fact(Skip="Bad arguments for OS X")]
+        [Fact]
         public static void TestGetFQDN()
         {
             var startInfo = new ProcessStartInfo
@@ -84,7 +84,7 @@ namespace PSTests
             }
         }
 
-        [Fact(Skip="Bad arguments for OS X")]
+        [Fact]
         public static void TestGetDomainName()
         {
             var startInfo = new ProcessStartInfo
@@ -201,7 +201,7 @@ namespace PSTests
         }
 
         [Fact]
-        public static void TestNonExistantIsHardLink()
+        public static void TestNonExistentIsHardLink()
         {
             // A file that should *never* exist on a test machine:
             string path = @"/tmp/ThisFileShouldNotExistOnTestMachines";
@@ -255,5 +255,6 @@ namespace PSTests
             File.Delete(path);
             File.Delete(link);
         }
+#endif
     }
 }

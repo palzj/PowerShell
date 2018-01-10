@@ -1,9 +1,10 @@
 using namespace System.Diagnostics
+using namespace System.Management.Automation.Internal
 
 Describe "PowerShell Command Debugging" -tags "CI" {
 
     BeforeAll {
-        $powershell = Join-Path -Path $PsHome -ChildPath "powershell"
+        $powershell = Join-Path -Path $PsHome -ChildPath "pwsh"
     }
 
     function NewProcessStartInfo([string]$CommandLine, [switch]$RedirectStdIn)
@@ -37,7 +38,7 @@ Describe "PowerShell Command Debugging" -tags "CI" {
     }
 
     It "Should be able to step into debugging" {
-        $debugfn = NewProcessStartInfo "-noprofile ""`$function:foo = { 'bar' }""" -RedirectStdIn
+        $debugfn = NewProcessStartInfo "-noprofile -c ""`$function:foo = { 'bar' }""" -RedirectStdIn
         $process = RunPowerShell $debugfn
         $process.StandardInput.Write("Set-PsBreakpoint -command foo`n")
 
@@ -56,7 +57,7 @@ Describe "PowerShell Command Debugging" -tags "CI" {
     }
 
     It "Should be able to continue into debugging" {
-        $debugfn = NewProcessStartInfo "-noprofile ""`$function:foo = { 'bar' }""" -RedirectStdIn
+        $debugfn = NewProcessStartInfo "-noprofile -c ""`$function:foo = { 'bar' }""" -RedirectStdIn
         $process = RunPowerShell $debugfn
         $process.StandardInput.Write("Set-PsBreakpoint -command foo`n")
 
@@ -73,7 +74,7 @@ Describe "PowerShell Command Debugging" -tags "CI" {
     }
 
     It -Pending "Should be able to list help for debugging" {
-        $debugfn = NewProcessStartInfo "-noprofile ""`$function:foo = { 'bar' }""" -RedirectStdIn
+        $debugfn = NewProcessStartInfo "-noprofile -c ""`$function:foo = { 'bar' }""" -RedirectStdIn
         $process = RunPowerShell $debugfn
         $process.StandardInput.Write("Set-PsBreakpoint -command foo`n")
 
@@ -96,7 +97,7 @@ Describe "PowerShell Command Debugging" -tags "CI" {
 
 
     It "Should be able to step over debugging" {
-        $debugfn = NewProcessStartInfo "-noprofile ""`$function:foo = { 'bar' }""" -RedirectStdIn
+        $debugfn = NewProcessStartInfo "-noprofile -c ""`$function:foo = { 'bar' }""" -RedirectStdIn
         $process = RunPowerShell $debugfn
         $process.StandardInput.Write("Set-PsBreakpoint -command foo`n")
 
@@ -113,7 +114,7 @@ Describe "PowerShell Command Debugging" -tags "CI" {
 
 
     It "Should be able to step out of debugging" {
-        $debugfn = NewProcessStartInfo "-noprofile ""`$function:foo = { 'bar' }""" -RedirectStdIn
+        $debugfn = NewProcessStartInfo "-noprofile -c ""`$function:foo = { 'bar' }""" -RedirectStdIn
         $process = RunPowerShell $debugfn
         $process.StandardInput.Write("Set-PsBreakpoint -command foo`n")
 
@@ -127,7 +128,7 @@ Describe "PowerShell Command Debugging" -tags "CI" {
     }
 
     It "Should be able to quit debugging" {
-        $debugfn = NewProcessStartInfo "-noprofile ""`$function:foo = { 'bar' }""" -RedirectStdIn
+        $debugfn = NewProcessStartInfo "-noprofile -c ""`$function:foo = { 'bar' }""" -RedirectStdIn
         $process = RunPowerShell $debugfn
         $process.StandardInput.Write("Set-PsBreakpoint -command foo`n")
 
@@ -141,7 +142,7 @@ Describe "PowerShell Command Debugging" -tags "CI" {
     }
 
     It -Pending "Should be able to list source code in debugging" {
-        $debugfn = NewProcessStartInfo "-noprofile ""`$function:foo = { 'bar' }""" -RedirectStdIn
+        $debugfn = NewProcessStartInfo "-noprofile -c ""`$function:foo = { 'bar' }""" -RedirectStdIn
         $process = RunPowerShell $debugfn
         $process.StandardInput.Write("Set-PsBreakpoint -command foo`n") | Write-Host
 
@@ -164,7 +165,7 @@ Describe "PowerShell Command Debugging" -tags "CI" {
 
 
     It -Pending "Should be able to get the call stack in debugging" {
-        $debugfn = NewProcessStartInfo "-noprofile ""`$function:foo = { 'bar' }""" -RedirectStdIn
+        $debugfn = NewProcessStartInfo "-noprofile -c ""`$function:foo = { 'bar' }""" -RedirectStdIn
         $process = RunPowerShell $debugfn
         $process.StandardInput.Write("Set-PsBreakpoint -command foo`n") | Write-Host
 
@@ -182,6 +183,98 @@ Describe "PowerShell Command Debugging" -tags "CI" {
     }
 
 
+}
+
+# Scripting\Debugging\RunspaceDebuggingTests.cs
+Describe "Runspace Debugging API tests" -tag CI {
+    Context "PSStandaloneMonitorRunspaceInfo tests" {
+        BeforeAll {
+            $runspace = [runspacefactory]::CreateRunspace()
+            $runspaceType = [PSMonitorRunspaceType]::WorkflowInlineScript
+            $monitorInfo = [PSStandaloneMonitorRunspaceInfo]::new($runspace)
+            $instanceId = $runspace.InstanceId
+            $parentDebuggerId = [guid]::newguid()
+            $ps = [powershell]::Create()
+            $embeddedRunspaceInfo = [PSEmbeddedMonitorRunspaceInfo]::New($runspace,$runspaceType,$ps, $parentDebuggerId)
+        }
+        AfterAll {
+            $runspace.Dispose()
+            $ps.dispose()
+        }
+
+        It "PSStandaloneMonitorRunspaceInfo should throw when called with a null argument to the constructor" {
+            try {
+                [PSStandaloneMonitorRunspaceInfo]::new($null)
+                throw "Execution should have thrown"
+            }
+            Catch {
+                $_.FullyQualifiedErrorId | should be PSArgumentNullException
+            }
+        }
+
+        it "PSStandaloneMonitorRunspaceInfo properties should have proper values" {
+            $monitorInfo.Runspace.InstanceId | Should be $InstanceId
+            $monitorInfo.RunspaceType | Should be "StandAlone"
+            $monitorInfo.NestedDebugger | Should BeNullOrEmpty
+        }
+
+        It "Embedded runspace properties should have proper values" {
+            $embeddedRunspaceInfo.Runspace.InstanceId | should be $InstanceId
+            $embeddedRunspaceInfo.ParentDebuggerId | should be $parentDebuggerId
+            $embeddedRunspaceInfo.Command.InstanceId | should be $ps.InstanceId
+            $embeddedRunspaceInfo.NestedDebugger | Should BeNullOrEmpty
+        }
+    }
+    Context "Test Monitor RunspaceInfo API tests" {
+        BeforeAll {
+            $runspace = [runspacefactory]::CreateRunspace()
+            $runspace.Open()
+            $associationId = [guid]::newguid()
+            $runspaceInfo = [PSStandaloneMonitorRunspaceInfo]::new($runspace)
+        }
+        AfterAll {
+            $runspace.Dispose()
+        }
+
+        It "DebuggerUtils StartMonitoringRunspace requires non-null debugger" {
+            try {
+                [DebuggerUtils]::StartMonitoringRunspace($null,$runspaceInfo)
+                throw "Execution should have thrown"
+            }
+            catch {
+                $_.fullyqualifiederrorid | should be PSArgumentNullException
+            }
+        }
+        It "DebuggerUtils StartMonitoringRunspace requires non-null runspaceInfo" {
+            try {
+                [DebuggerUtils]::StartMonitoringRunspace($runspace.Debugger,$null)
+                throw "Execution should have thrown"
+            }
+            catch {
+                $_.fullyqualifiederrorid | should be PSArgumentNullException
+            }
+        }
+
+        It "DebuggerUtils EndMonitoringRunspace requires non-null debugger" {
+            try {
+                [DebuggerUtils]::EndMonitoringRunspace($null,$runspaceInfo)
+                throw "Execution should have thrown"
+            }
+            catch {
+                $_.fullyqualifiederrorid | should be PSArgumentNullException
+            }
+        }
+        It "DebuggerUtils EndMonitoringRunspace requires non-null runspaceInfo" {
+            try {
+                [DebuggerUtils]::EndMonitoringRunspace($runspace.Debugger,$null)
+                throw "Execution should have thrown"
+            }
+            catch {
+                $_.fullyqualifiederrorid | should be PSArgumentNullException
+            }
+        }
+
+    }
 }
 
 

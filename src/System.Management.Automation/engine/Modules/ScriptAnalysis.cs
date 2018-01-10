@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections;
@@ -9,11 +9,6 @@ using System.IO;
 using System.Text;
 using System.Management.Automation.Language;
 using System.Text.RegularExpressions;
-
-#if CORECLR
-// Use stub for SerializableAttribute.
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
 
 namespace System.Management.Automation
 {
@@ -52,7 +47,7 @@ namespace System.Management.Automation
             ParseError[] errors;
             var moduleAst = (new Parser()).Parse(path, scriptContent, null, out errors, ParseMode.ModuleAnalysis);
 
-            // Don't bother analyzing if there are syntax errors (we don't do semenatic analysis which would
+            // Don't bother analyzing if there are syntax errors (we don't do semantic analysis which would
             // detect other errors that we also might choose to ignore, but it's slower.)
             if (errors.Length > 0)
                 return null;
@@ -473,7 +468,7 @@ namespace System.Management.Automation
                             var argumentAst = specifiedParameter.Argument;
                             if (argumentAst == null)
                             {
-                                argumentAst = commandAst.CommandElements[i + 1] as ExpressionAst;
+                                argumentAst = commandAst.CommandElements[i] as ExpressionAst;
                                 if (argumentAst != null)
                                 {
                                     i += 1;

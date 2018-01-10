@@ -1,26 +1,22 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.IO;
 using System.IO.Compression;
 using System.Management.Automation;
 using System.Management.Automation.Internal;
-
-#if CORECLR
 using System.Net.Http;
-#else
-using System.Net;
-#endif
 
 namespace Microsoft.PowerShell.Commands
 {
     /// <summary>
     /// Microsoft.PowerShell.Commands.WebResponse has a public property RawContentStream
     /// which is of type MemoryStream. We shipped like that in PowerShell 3. Creating
-    /// this class as a wrapper to MemoryStream to lazily initialize. Otherwise, the 
+    /// this class as a wrapper to MemoryStream to lazily initialize. Otherwise, the
     /// content will unnecessarily be read even if there are no consumers for it.
     /// </summary>
     internal class WebResponseContentMemoryStream : MemoryStream
@@ -35,7 +31,7 @@ namespace Microsoft.PowerShell.Commands
 
         #region Constructors
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="initialCapacity"></param>
@@ -49,7 +45,7 @@ namespace Microsoft.PowerShell.Commands
         #endregion
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public override bool CanRead
         {
@@ -60,7 +56,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public override bool CanSeek
         {
@@ -71,7 +67,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public override bool CanTimeout
         {
@@ -82,7 +78,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public override bool CanWrite
         {
@@ -93,7 +89,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public override long Length
         {
@@ -105,7 +101,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="destination"></param>
         /// <param name="bufferSize"></param>
@@ -118,7 +114,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="buffer"></param>
         /// <param name="offset"></param>
@@ -131,7 +127,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="buffer"></param>
         /// <param name="offset"></param>
@@ -145,7 +141,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <returns></returns>
         public override int ReadByte()
@@ -155,7 +151,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="value"></param>
         public override void SetLength(long value)
@@ -165,7 +161,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <returns></returns>
         public override byte[] ToArray()
@@ -175,7 +171,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="buffer"></param>
         /// <param name="offset"></param>
@@ -187,7 +183,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="buffer"></param>
         /// <param name="offset"></param>
@@ -201,7 +197,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="value"></param>
         public override void WriteByte(byte value)
@@ -211,7 +207,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="stream"></param>
         public override void WriteTo(Stream stream)
@@ -221,52 +217,15 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
         }
 
-#if !CORECLR
         /// <summary>
-        /// 
-        /// </summary>
-        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-        {
-            Initialize();
-            return base.BeginRead(buffer, offset, count, callback, state);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
-        {
-            Initialize();
-            return base.BeginWrite(buffer, offset, count, callback, state);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public override byte[] GetBuffer()
-        {
-            Initialize();
-            return base.GetBuffer();
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public override void Close()
-        {
-            base.Close();
-        }
-#endif
-
-        /// <summary>
-        /// 
+        ///
         /// </summary>
         private void Initialize()
         {
@@ -276,13 +235,12 @@ namespace Microsoft.PowerShell.Commands
             {
                 long totalLength = 0;
                 byte[] buffer = new byte[StreamHelper.ChunkSize];
+                ProgressRecord record = new ProgressRecord(StreamHelper.ActivityId, WebCmdletStrings.ReadResponseProgressActivity, "statusDescriptionPlaceholder");
                 for (int read = 1; 0 < read; totalLength += read)
                 {
                     if (null != _ownerCmdlet)
                     {
-                        ProgressRecord record = new ProgressRecord(StreamHelper.ActivityId,
-                            WebCmdletStrings.ReadResponseProgressActivity,
-                        StringUtil.Format(WebCmdletStrings.ReadResponseProgressStatus, totalLength));
+                        record.StatusDescription = StringUtil.Format(WebCmdletStrings.ReadResponseProgressStatus, totalLength);
                         _ownerCmdlet.WriteProgress(record);
 
                         if (_ownerCmdlet.IsStopping)
@@ -301,9 +259,7 @@ namespace Microsoft.PowerShell.Commands
 
                 if (_ownerCmdlet != null)
                 {
-                    ProgressRecord record = new ProgressRecord(StreamHelper.ActivityId,
-                        WebCmdletStrings.ReadResponseProgressActivity,
-                        StringUtil.Format(WebCmdletStrings.ReadResponseComplete, totalLength));
+                    record.StatusDescription = StringUtil.Format(WebCmdletStrings.ReadResponseComplete, totalLength);
                     record.RecordType = ProgressRecordType.Completed;
                     _ownerCmdlet.WriteProgress(record);
                 }
@@ -381,7 +337,7 @@ namespace Microsoft.PowerShell.Commands
 
         /// <summary>
         /// Saves content from stream into filePath.
-        /// Caller need to ensure <paramref name="stream"/> postion is properly set.
+        /// Caller need to ensure <paramref name="stream"/> position is properly set.
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="filePath"></param>
@@ -394,20 +350,8 @@ namespace Microsoft.PowerShell.Commands
             }
         }
 
-        internal static string DecodeStream(Stream stream, string characterSet)
+        private static string StreamToString(Stream stream, Encoding encoding)
         {
-            Encoding encoding = ContentHelper.GetEncodingOrDefault(characterSet);
-            return DecodeStream(stream, encoding);
-        }
-
-        internal static string DecodeStream(Stream stream, Encoding encoding)
-        {
-            if (null == encoding)
-            {
-                // just use the default encoding if one wasn't provided
-                encoding = ContentHelper.GetDefaultEncoding();
-            }
-
             StringBuilder result = new StringBuilder(capacity: ChunkSize);
             Decoder decoder = encoding.GetDecoder();
 
@@ -416,15 +360,14 @@ namespace Microsoft.PowerShell.Commands
             {
                 useBufferSize = encoding.GetMaxCharCount(10);
             }
+
             char[] chars = new char[useBufferSize];
-
-
             byte[] bytes = new byte[useBufferSize * 4];
             int bytesRead = 0;
             do
             {
-                // Read at most the number of bytes that will fit in the input buffer. The  
-                // return value is the actual number of bytes read, or zero if no bytes remain. 
+                // Read at most the number of bytes that will fit in the input buffer. The
+                // return value is the actual number of bytes read, or zero if no bytes remain.
                 bytesRead = stream.Read(bytes, 0, useBufferSize * 4);
 
                 bool completed = false;
@@ -434,23 +377,85 @@ namespace Microsoft.PowerShell.Commands
 
                 while (!completed)
                 {
-                    // If this is the last input data, flush the decoder's internal buffer and state. 
+                    // If this is the last input data, flush the decoder's internal buffer and state.
                     bool flush = (bytesRead == 0);
                     decoder.Convert(bytes, byteIndex, bytesRead - byteIndex,
                                     chars, 0, useBufferSize, flush,
                                     out bytesUsed, out charsUsed, out completed);
 
-                    // The conversion produced the number of characters indicated by charsUsed. Write that number 
+                    // The conversion produced the number of characters indicated by charsUsed. Write that number
                     // of characters to our result buffer
                     result.Append(chars, 0, charsUsed);
 
                     // Increment byteIndex to the next block of bytes in the input buffer, if any, to convert.
                     byteIndex += bytesUsed;
                 }
-            }
-            while (bytesRead != 0);
+            } while (bytesRead != 0);
 
             return result.ToString();
+        }
+
+        internal static string DecodeStream(Stream stream, string characterSet, out Encoding encoding)
+        {
+            try
+            {
+                encoding = Encoding.GetEncoding(characterSet);
+            }
+            catch (ArgumentException)
+            {
+                encoding = null;
+            }
+            return DecodeStream(stream, ref encoding);
+        }
+
+        internal static bool TryGetEncoding(string characterSet, out Encoding encoding)
+        {
+            bool result = false;
+            try
+            {
+                encoding = Encoding.GetEncoding(characterSet);
+                result = true;
+            }
+            catch (ArgumentException)
+            {
+                encoding = null;
+            }
+            return result;
+        }
+
+        static readonly Regex s_metaexp = new Regex(@"<meta\s[.\n]*[^><]*charset\s*=\s*[""'\n]?(?<charset>[A-Za-z].[^\s""'\n<>]*)[\s""'\n>]");
+
+        internal static string DecodeStream(Stream stream, ref Encoding encoding)
+        {
+            bool isDefaultEncoding = false;
+            if (null == encoding)
+            {
+                // Use the default encoding if one wasn't provided
+                encoding = ContentHelper.GetDefaultEncoding();
+                isDefaultEncoding = true;
+            }
+
+            string content = StreamToString (stream, encoding);
+            if (isDefaultEncoding) do
+            {
+                // check for a charset attribute on the meta element to override the default.
+                Match match = s_metaexp.Match(content);
+                if (match.Success)
+                {
+                    Encoding localEncoding = null;
+                    string characterSet = match.Groups["charset"].Value;
+
+                    if (TryGetEncoding(characterSet, out localEncoding))
+                    {
+                        stream.Seek(0, SeekOrigin.Begin);
+                        content = StreamToString(stream, localEncoding);
+                        // report the encoding used.
+                        encoding = localEncoding;
+                    }
+                }
+            } while (false);
+
+            return content;
         }
 
         internal static Byte[] EncodeToBytes(String str, Encoding encoding)
@@ -469,7 +474,6 @@ namespace Microsoft.PowerShell.Commands
             return EncodeToBytes(str, null);
         }
 
-#if CORECLR
         internal static Stream GetResponseStream(HttpResponseMessage response)
         {
             Stream responseStream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
@@ -491,28 +495,6 @@ namespace Microsoft.PowerShell.Commands
 
             return responseStream;
         }
-#else
-        internal static Stream GetResponseStream(WebResponse response)
-        {
-            Stream responseStream = response.GetResponseStream();
-
-            // See if it had a content-encoding, wrap in a decoding stream if so.
-            string contentEncoding = response.Headers["Content-Encoding"];
-            if (contentEncoding != null)
-            {
-                if (contentEncoding.IndexOf("gzip", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    responseStream = new GZipStream(responseStream, CompressionMode.Decompress);
-                }
-                else if (contentEncoding.IndexOf("deflate", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    responseStream = new DeflateStream(responseStream, CompressionMode.Decompress);
-                }
-            }
-
-            return responseStream;
-        }
-#endif
 
         #endregion Static Methods
     }

@@ -1,5 +1,5 @@
 //
-//    Copyright (C) Microsoft.  All rights reserved.
+//    Copyright (c) Microsoft Corporation. All rights reserved.
 //
 
 using System;
@@ -18,7 +18,7 @@ namespace Microsoft.PowerShell.Commands
     /// Registers for an event on an object.
     /// </summary>
     [Cmdlet(VerbsLifecycle.Register, "WmiEvent", DefaultParameterSetName = "class",
-        HelpUri = "http://go.microsoft.com/fwlink/?LinkID=135245", RemotingCapability = RemotingCapability.OwnedByCommand)]
+        HelpUri = "https://go.microsoft.com/fwlink/?LinkID=135245", RemotingCapability = RemotingCapability.OwnedByCommand)]
     public class RegisterWmiEventCommand : ObjectEventRegistrationBase
     {
         #region parameters
@@ -95,7 +95,7 @@ namespace Microsoft.PowerShell.Commands
             returnValue.Append(namespaceParameter);
             return returnValue.ToString();
         }
-        #endregion helper funtions
+        #endregion helper functions
 
 
         /// <summary>

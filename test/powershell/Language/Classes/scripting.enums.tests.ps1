@@ -1,9 +1,8 @@
 #
-# Copyright (c) Microsoft Corporation, 2015
+# Copyright (c) Microsoft Corporation. All rights reserved.
 #
 
 Describe 'enums' -Tags "CI" {
-
     Context 'basic enums' {
         enum E1
         {
@@ -62,9 +61,10 @@ Describe 'enums' -Tags "CI" {
             e0 = [E6]::e0 + 2
         }
 
+        # Don't add space after 'e0 ='! Fix #2543
         enum E6
         {
-            e0 = 38
+            e0 =38
         }
 
         It 'E4 has correct value' { [E4]::e0 | Should Be ([E4]42) }
@@ -74,18 +74,11 @@ Describe 'enums' -Tags "CI" {
 }
 
 Describe 'Basic enum errors' -Tags "CI" {
-
-    Import-Module $PSScriptRoot\..\LanguageTestSupport.psm1
-
-    AfterAll {
-        Remove-Module LanguageTestSupport
-    }
-
     ShouldBeParseError 'enum' MissingNameAfterKeyword 4
     ShouldBeParseError 'enum foo' MissingTypeBody 8
     ShouldBeParseError 'enum foo {' MissingEndCurlyBrace 10
     ShouldBeParseError 'enum foo { x = }' ExpectedValueExpression 14
-    ShouldBeParseError 'enum foo { x =' ExpectedValueExpression,MissingEndCurlyBrace  14,14
+    ShouldBeParseError 'enum foo { x =' ExpectedValueExpression,MissingEndCurlyBrace  14,10
     ShouldBeParseError 'enum foo {} enum foo {}' MemberAlreadyDefined 12
     ShouldBeParseError 'enum foo { x; x }' MemberAlreadyDefined 14 -SkipAndCheckRuntimeError
     ShouldBeParseError 'enum foo { X; x }' MemberAlreadyDefined 14 -SkipAndCheckRuntimeError
@@ -94,4 +87,5 @@ Describe 'Basic enum errors' -Tags "CI" {
     ShouldBeParseError 'enum foo { e = [int]::MaxValue + 1 }' EnumeratorValueTooLarge 15 -SkipAndCheckRuntimeError
     ShouldBeParseError 'enum foo { e = $foo }' EnumeratorValueMustBeConstant 15 -SkipAndCheckRuntimeError
     ShouldBeParseError 'enum foo { e = "hello" }' CannotConvertValue 15 -SkipAndCheckRuntimeError
+    ShouldBeParseError 'enum foo { a;b;c;' MissingEndCurlyBrace 10
 }

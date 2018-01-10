@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
+﻿// Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information.
 
 using System;
 using System.Collections.Generic;
@@ -258,7 +258,7 @@ namespace Microsoft.CodeAnalysis
 
         /// <summary>
         /// Selects the candidate assembly with the largest version number.  Uses culture as a tie-breaker if it is provided.
-        /// All candidates are assumed to have the same name and must include versions and cultures.  
+        /// All candidates are assumed to have the same name and must include versions and cultures.
         /// </summary>
         internal static IAssemblyName GetBestMatch(IEnumerable<IAssemblyName> candidates, string preferredCultureOpt)
         {
@@ -292,7 +292,7 @@ namespace Microsoft.CodeAnalysis
                                 Debug.Assert(bestCulture != null);
                             }
 
-                            // we have exactly the preferred culture or 
+                            // we have exactly the preferred culture or
                             // we have neutral culture and the best candidate's culture isn't the preferred one:
                             if (StringComparer.OrdinalIgnoreCase.Equals(candidateCulture, preferredCultureOpt) ||
                                 candidateCulture.Length == 0 && !StringComparer.OrdinalIgnoreCase.Equals(bestCulture, preferredCultureOpt))

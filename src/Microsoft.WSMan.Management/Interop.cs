@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 using System;
 using System.IO;
@@ -14,19 +14,15 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-#if CORECLR
-// Use stub for TypeLibTypeAttribute
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
 
 #pragma warning disable 1591
 
 namespace Microsoft.WSMan.Management
 {
-    
+
     #region "public Api"
 
-    
+
 
     #region WsManEnumFlags
     /// <summary><para>_WSManEnumFlags enumeration.</para></summary>
@@ -57,7 +53,7 @@ namespace Microsoft.WSMan.Management
 
         /// <summary><para><c>WSManFlagHierarchyDeepBasePropsOnly</c> constant of <c>_WSManEnumFlags</c> enumeration.  </para><para>Constant value is 64.</para></summary>
         WSManFlagHierarchyDeepBasePropsOnly = 64,
-        
+
         /// <summary><para><c>WSManFlagAssociationInstance </c> constant of <c>_WSManEnumFlags</c> enumeration.  </para><para>Constant value is 64.</para></summary>
         WSManFlagAssociationInstance = 128
     }
@@ -69,7 +65,7 @@ namespace Microsoft.WSMan.Management
 
     #region WsManSessionFlags
     /// <summary><para>WSManSessionFlags enumeration.</para></summary>
-    /// 
+    ///
     [SuppressMessage("Microsoft.Design", "CA1027:MarkEnumsWithFlags")]
     [TypeLibType((short)0)]
     public enum WSManSessionFlags
@@ -136,7 +132,7 @@ namespace Microsoft.WSMan.Management
 
     #region AuthenticationMechanism
     /// <summary>WSManEnumFlags enumeration</summary>
-    /// 
+    ///
     [SuppressMessage("Microsoft.Design", "CA1027:MarkEnumsWithFlags")]
     public enum AuthenticationMechanism
     {
@@ -153,7 +149,7 @@ namespace Microsoft.WSMan.Management
         /// </summary>
         Digest = 0x2,
         /// <summary>
-        /// Use negotiate authentication for a remote operation (may use kerboros or ntlm)
+        /// Use negotiate authentication for a remote operation (may use kerberos or ntlm)
         /// </summary>
         Negotiate = 0x4,
         /// <summary>
@@ -161,11 +157,11 @@ namespace Microsoft.WSMan.Management
         /// </summary>
         Basic = 0x8,
         /// <summary>
-        /// Use kerberos authentication for a remote operation 
+        /// Use kerberos authentication for a remote operation
         /// </summary>
         Kerberos = 0x10,
         /// <summary>
-        /// Use client certificate authentication for a remote operation 
+        /// Use client certificate authentication for a remote operation
         /// </summary>
         ClientCertificate = 0x20,
         /// <summary>
@@ -190,7 +186,7 @@ namespace Microsoft.WSMan.Management
 #else
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIDispatch)]
 #endif
-    
+
     public interface IWSMan
     {
 #if CORECLR
@@ -222,7 +218,7 @@ namespace Microsoft.WSMan.Management
         /// <summary><para><c>CreateConnectionOptions</c> method of <c>IWSMan</c> interface.</para></summary>
         /// <remarks><para>An original IDL definition of <c>CreateConnectionOptions</c> method was the following:  <c>HRESULT CreateConnectionOptions ([out, retval] IDispatch** ReturnValue)</c>;</para></remarks>
         // IDL: HRESULT CreateConnectionOptions ([out, retval] IDispatch** ReturnValue);
-        // 
+        //
         [DispId(2)]
 #if CORECLR
         [return: MarshalAs(UnmanagedType.IUnknown)]
@@ -234,7 +230,7 @@ namespace Microsoft.WSMan.Management
         /// <summary><para><c>CommandLine</c> property of <c>IWSMan</c> interface.</para></summary>
         /// <remarks><para>An original IDL definition of <c>CommandLine</c> property was the following:  <c>BSTR CommandLine</c>;</para></remarks>
         // IDL: BSTR CommandLine;
-        // 
+        //
         string CommandLine
         {
             // IDL: HRESULT CommandLine ([out, retval] BSTR* ReturnValue);
@@ -247,7 +243,7 @@ namespace Microsoft.WSMan.Management
         /// <summary><para><c>Error</c> property of <c>IWSMan</c> interface.</para></summary>
         /// <remarks><para>An original IDL definition of <c>Error</c> property was the following:  <c>BSTR Error</c>;</para></remarks>
         // IDL: BSTR Error;
-        // 
+        //
 
         [SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "Error")]
         string Error
@@ -405,7 +401,7 @@ namespace Microsoft.WSMan.Management
 #else
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIDispatch)]
 #endif
-    
+
     public interface IWSManEnumerator
     {
 #if CORECLR
@@ -517,7 +513,7 @@ namespace Microsoft.WSMan.Management
 
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <returns></returns>
         string CommandLine
@@ -718,12 +714,12 @@ namespace Microsoft.WSMan.Management
 
     /// <summary><para><c>IWSManResourceLocator</c> interface.</para></summary>
     [SuppressMessage("Microsoft.Design", "CA1040:AvoidEmptyInterfaces")]
-    
+
     [SuppressMessage("Microsoft.Design", "CA1056:UriPropertiesShouldNotBeStrings")]
-    
-    
+
+
     [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Sel")]
-    
+
     [Guid("A7A1BA28-DE41-466A-AD0A-C4059EAD7428")]
     [ComImport]
     [TypeLibType((short)4288)]
@@ -732,8 +728,8 @@ namespace Microsoft.WSMan.Management
 #else
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIDispatch)]
 #endif
-    
-    
+
+
     public interface IWSManResourceLocator
     {
 #if CORECLR
@@ -780,10 +776,10 @@ namespace Microsoft.WSMan.Management
         // IDL: HRESULT AddSelector (BSTR resourceSelName, VARIANT selValue);
 
 
-        [SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "resource")]        
+        [SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "resource")]
         [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "sel")]
         [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Sel")]
-        [DispId(2)]  
+        [DispId(2)]
         void AddSelector([MarshalAs(UnmanagedType.BStr)] string resourceSelName, object selValue);
 
         /// <summary><para><c>ClearSelectors</c> method of <c>IWSManResourceLocator</c> interface.  </para><para>Clear all selectors</para></summary>
@@ -792,7 +788,7 @@ namespace Microsoft.WSMan.Management
         // IDL: HRESULT ClearSelectors (void);
 
 
-        
+
         [DispId(3)]
         void ClearSelectors();
 
@@ -842,9 +838,9 @@ namespace Microsoft.WSMan.Management
         void AddOption([MarshalAs(UnmanagedType.BStr)] string OptionName, object OptionValue, int mustComply);
 
 
-        /// <summary><para><c>MustUnderstandOptions</c> property of <c>IWSManResourceLocator</c> interface.  </para><para>Sets the  MustUnderstandOptions value</para></summary>
+        /// <summary><para><c>MustUnderstandOptions</c> property of <c>IWSManResourceLocator</c> interface.  </para><para>Sets the MustUnderstandOptions value</para></summary>
         /// <remarks><para>An original IDL definition of <c>MustUnderstandOptions</c> property was the following:  <c>long MustUnderstandOptions</c>;</para></remarks>
-        // Sets the  MustUnderstandOptions value
+        // Sets the MustUnderstandOptions value
         // IDL: long MustUnderstandOptions;
 
         int MustUnderstandOptions
@@ -956,7 +952,7 @@ namespace Microsoft.WSMan.Management
         void Delete(object resourceUri, int flags);
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="actionURI"></param>
         /// <param name="resourceUri"></param>

@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.Generic;
@@ -11,7 +11,7 @@ using System.Reflection.Emit;
 namespace System.Management.Automation.Language
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public interface ICustomAstVisitor
     {
@@ -265,7 +265,7 @@ namespace System.Management.Automation.Language
             Type type = ast.TypeName.GetReflectionType();
             if (type != null)
             {
-                Diagnostics.Assert(!(type.GetTypeInfo() is TypeBuilder), "ReflectionType can never be TypeBuilder");
+                Diagnostics.Assert(!(type is TypeBuilder), "ReflectionType can never be TypeBuilder");
             }
             return AstVisitAction.Continue;
         }

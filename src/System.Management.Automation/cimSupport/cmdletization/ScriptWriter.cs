@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -21,13 +21,6 @@ using System.Management.Automation;
 using System.Management.Automation.Language;
 using Microsoft.PowerShell.Commands;
 using Dbg = System.Management.Automation.Diagnostics;
-
-#if CORECLR
-// Some APIs are missing from System.Environment. We use System.Management.Automation.Environment as a proxy type:
-//  - for missing APIs, System.Management.Automation.Environment has extension implementation.
-//  - for existing APIs, System.Management.Automation.Environment redirect the call to System.Environment.
-using Environment = System.Management.Automation.Environment;
-#endif
 
 namespace Microsoft.PowerShell.Cmdletization
 {
@@ -54,8 +47,9 @@ namespace Microsoft.PowerShell.Cmdletization
             ScriptWriter.s_xmlReaderSettings.MaxCharactersFromEntities = 16384; // generous guess for the upper bound
             ScriptWriter.s_xmlReaderSettings.MaxCharactersInDocument = 128 * 1024 * 1024; // generous guess for the upper bound
 
-#if CORECLR // XmlReaderSettings doesn't have XmlResolver and Schema Validation related members in CoreCLR.
-            ScriptWriter.s_xmlReaderSettings.DtdProcessing = DtdProcessing.Ignore; // DtdProcessing.Parse is not in CoreCLR, so we ignore DTDs in OneCore powershell
+#if CORECLR // The XML Schema file 'cmdlets-over-objects.xsd' is missing in Github, and it's likely the resource string
+            //'CmdletizationCoreResources.Xml_cmdletsOverObjectsXsd' needs to be reworked to work in .NET Core.
+            ScriptWriter.s_xmlReaderSettings.DtdProcessing = DtdProcessing.Ignore;
 #else
             ScriptWriter.s_xmlReaderSettings.DtdProcessing = DtdProcessing.Parse; // Allowing DTD parsing with limits of MaxCharactersFromEntities/MaxCharactersInDocument
             ScriptWriter.s_xmlReaderSettings.XmlResolver = null; // do not fetch external documents
@@ -110,13 +104,12 @@ namespace Microsoft.PowerShell.Cmdletization
             }
             catch (InvalidOperationException e)
             {
-#if !CORECLR    // No XmlSchema Validation In CoreCLR
                 XmlSchemaException schemaException = e.InnerException as XmlSchemaException;
                 if (schemaException != null)
                 {
                     throw new XmlException(schemaException.Message, schemaException, schemaException.LineNumber, schemaException.LinePosition);
                 }
-#endif
+
                 XmlException xmlException = e.InnerException as XmlException;
                 if (xmlException != null)
                 {
@@ -221,14 +214,14 @@ function __cmdletization_BindCommonParameters
     param(
         $__cmdletization_objectModelWrapper,
         $myPSBoundParameters
-    )       
+    )
                 ");
 
             foreach (ParameterMetadata commonParameter in this.GetCommonParameters().Values)
             {
                 output.WriteLine(@"
-        if ($myPSBoundParameters.ContainsKey('{0}')) {{ 
-            $__cmdletization_objectModelWrapper.PSObject.Properties['{0}'].Value = $myPSBoundParameters['{0}'] 
+        if ($myPSBoundParameters.ContainsKey('{0}')) {{
+            $__cmdletization_objectModelWrapper.PSObject.Properties['{0}'].Value = $myPSBoundParameters['{0}']
         }}
                     ",
                      CodeGeneration.EscapeSingleQuotedStringContent(commonParameter.Name));
@@ -765,7 +758,7 @@ function __cmdletization_BindCommonParameters
                         if (this.GetCommonParameters().ContainsKey(parameter.Key))
                         {
                             string message = string.Format(
-                                CultureInfo.InvariantCulture, // parameter name 
+                                CultureInfo.InvariantCulture, // parameter name
                                 CmdletizationCoreResources.ScriptWriter_ParameterNameConflictsWithCommonParameters,
                                 parameter.Key,
                                 commandMetadata.Name,
@@ -775,7 +768,7 @@ function __cmdletization_BindCommonParameters
                         else
                         {
                             string message = string.Format(
-                                CultureInfo.InvariantCulture, // parameter name 
+                                CultureInfo.InvariantCulture, // parameter name
                                 CmdletizationCoreResources.ScriptWriter_ParameterNameConflictsWithQueryParameters,
                                 parameter.Key,
                                 commandMetadata.Name,
@@ -925,7 +918,7 @@ function __cmdletization_BindCommonParameters
         }
 
 
-        private const string StaticCommonParameterSetTemplate = "{1}"; //"{0}::{1}"; 
+        private const string StaticCommonParameterSetTemplate = "{1}"; //"{0}::{1}";
         private const string StaticMethodParameterSetTemplate = "{0}"; //"{1}::{0}";
 
         private const string InstanceCommonParameterSetTemplate = "{1}"; //"{0}::{1}::{2}";
@@ -1633,7 +1626,7 @@ function __cmdletization_BindCommonParameters
                                 methodName = "FilterByMaxPropertyValue";
                                 break;
                             default:
-                                Dbg.Assert(false, "Unrecognize query xml element");
+                                Dbg.Assert(false, "Unrecognized query xml element");
                                 methodName = "NotAValidMethod";
                                 break;
                         }
@@ -1773,7 +1766,7 @@ function {0}
     {4})
 
     DynamicParam {{
-        try 
+        try
         {{
             if (-not $__cmdletization_exceptionHasBeenThrown)
             {{
@@ -1795,7 +1788,7 @@ function {0}
 
     Begin {{
         $__cmdletization_exceptionHasBeenThrown = $false
-        try 
+        try
         {{
             __cmdletization_BindCommonParameters $__cmdletization_objectModelWrapper $PSBoundParameters
             $__cmdletization_objectModelWrapper.BeginProcessing()
@@ -1810,7 +1803,7 @@ function {0}
 
         private const string CmdletProcessBlockTemplate = @"
     Process {{
-        try 
+        try
         {{
             if (-not $__cmdletization_exceptionHasBeenThrown)
             {{

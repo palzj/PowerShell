@@ -1,6 +1,6 @@
 //
-// Copyright (c) 2008 Microsoft Corporation. All rights reserved.
-// 
+// Copyright (c) Microsoft Corporation. All rights reserved.
+//
 
 
 using System;
@@ -30,15 +30,15 @@ using Microsoft.PowerShell.Commands.Diagnostics.Common;
 
 namespace Microsoft.PowerShell.Commands
 {
-    /// 
+    ///
     /// Class that implements the Get-Counter cmdlet.
-    /// 
-    [Cmdlet("Export", "Counter", DefaultParameterSetName = "ExportCounterSet", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=138337")]
+    ///
+    [Cmdlet(VerbsData.Export, "Counter", DefaultParameterSetName = "ExportCounterSet", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=138337")]
     public sealed class ExportCounterCommand : PSCmdlet
     {
         //
         // Path parameter
-        //  
+        //
         [Parameter(
                 Mandatory = true,
                 Position = 0,
@@ -58,26 +58,27 @@ namespace Microsoft.PowerShell.Commands
         //
         // Format parameter.
         // Valid strings are "blg", "csv", "tsv" (case-insensitive).
-        //  
+        //
         [Parameter(
                 Mandatory = false,
                 ValueFromPipeline = false,
                 ValueFromPipelineByPropertyName = false,
                 HelpMessageBaseName = "GetEventResources")]
         [ValidateNotNull]
+        [ValidateSet("blg", "csv", "tsv")]
         public string FileFormat
         {
             get { return _format; }
             set { _format = value; }
         }
-        private string _format = "BLG";
+        private string _format = "blg";
 
 
 
         //
         // MaxSize parameter
         // Maximum output file size, in megabytes.
-        //  
+        //
         [Parameter(
                 HelpMessageBaseName = "GetEventResources")]
         public UInt32 MaxSize
@@ -90,7 +91,7 @@ namespace Microsoft.PowerShell.Commands
 
         //
         // InputObject parameter
-        //  
+        //
         [Parameter(
                 Mandatory = true,
                 ValueFromPipeline = true,
@@ -150,26 +151,39 @@ namespace Microsoft.PowerShell.Commands
         //
         protected override void BeginProcessing()
         {
-            _resourceMgr = Microsoft.PowerShell.Commands.Diagnostics.Common.CommonUtilities.GetResourceManager();
 
+#if CORECLR
+            if (Platform.IsIoT)
+            {
+                // IoT does not have the '$env:windir\System32\pdh.dll' assembly which is required by this cmdlet.
+                throw new PlatformNotSupportedException();
+            }
+
+            // PowerShell Core requires at least Windows 7,
+            // so no version test is needed
+            _pdhHelper = new PdhHelper(false);
+#else
             //
             // Determine the OS version: this cmdlet requires Windows 7
             // because it uses new Pdh functionality.
             //
-            if (System.Environment.OSVersion.Version.Major < 6 ||
-                (System.Environment.OSVersion.Version.Major == 6 && System.Environment.OSVersion.Version.Minor < 1))
+            Version osVersion = System.Environment.OSVersion.Version;
+            if (osVersion.Major < 6 ||
+                (osVersion.Major == 6 && osVersion.Minor < 1))
             {
                 string msg = _resourceMgr.GetString("ExportCtrWin7Required");
                 Exception exc = new Exception(msg);
                 ThrowTerminatingError(new ErrorRecord(exc, "ExportCtrWin7Required", ErrorCategory.NotImplemented, null));
             }
 
-            _pdhHelper = new PdhHelper(System.Environment.OSVersion.Version.Major < 6);
+            _pdhHelper = new PdhHelper(osVersion.Major < 6);
+#endif
+            _resourceMgr = Microsoft.PowerShell.Commands.Diagnostics.Common.CommonUtilities.GetResourceManager();
 
             //
-            // Validate the Format and CounterSamples arguments
-            //            
-            ValidateFormat();
+            // Set output format (log file type)
+            //
+            SetOutputFormat();
 
             if (Circular.IsPresent && _maxSize == 0)
             {
@@ -200,9 +214,9 @@ namespace Microsoft.PowerShell.Commands
         }
 
 
-        /// 
+        ///
         /// Handle Control-C
-        /// 
+        ///
         protected override void StopProcessing()
         {
             _stopping = true;
@@ -214,7 +228,7 @@ namespace Microsoft.PowerShell.Commands
         // This is the main entry point for the cmdlet.
         // When counter data comes from the pipeline, this gets invoked for each pipelined object.
         // When it's passed in as an argument, ProcessRecord() is called once for the entire _counterSampleSets array.
-        //       
+        //
         protected override void ProcessRecord()
         {
             Debug.Assert(_counterSampleSets.Length != 0 && _counterSampleSets[0] != null);
@@ -225,7 +239,7 @@ namespace Microsoft.PowerShell.Commands
 
             if (!_queryInitialized)
             {
-                if (_format.ToLower(CultureInfo.InvariantCulture).Equals("blg"))
+                if (_format.ToLowerInvariant().Equals("blg"))
                 {
                     res = _pdhHelper.AddRelogCounters(_counterSampleSets[0]);
                 }
@@ -298,26 +312,20 @@ namespace Microsoft.PowerShell.Commands
             }
         }
 
-        // ValidateFormat() helper.
-        // Validates Format argument: only "BLG", "TSV" and "CSV" are valid strings (case-insensitive)
+        // Determines Log File Type based on FileFormat parameter
         //
-        private void ValidateFormat()
+        private void SetOutputFormat()
         {
-            switch (_format.ToLower(CultureInfo.InvariantCulture))
+            switch (_format.ToLowerInvariant())
             {
-                case "blg":
-                    _outputFormat = PdhLogFileType.PDH_LOG_TYPE_BINARY;
-                    break;
                 case "csv":
                     _outputFormat = PdhLogFileType.PDH_LOG_TYPE_CSV;
                     break;
                 case "tsv":
                     _outputFormat = PdhLogFileType.PDH_LOG_TYPE_TSV;
                     break;
-                default:
-                    string msg = string.Format(CultureInfo.InvariantCulture, _resourceMgr.GetString("CounterInvalidFormat"), _format);
-                    Exception exc = new Exception(msg);
-                    ThrowTerminatingError(new ErrorRecord(exc, "CounterInvalidFormat", ErrorCategory.InvalidArgument, null));
+                default:  // By default file format is blg
+                    _outputFormat = PdhLogFileType.PDH_LOG_TYPE_BINARY;
                     break;
             }
         }

@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -12,12 +12,8 @@ using System.Text;
 using System.Globalization;
 using Dbg = System.Management.Automation;
 using System.Management.Automation.Internal;
-#if CORECLR
 using Newtonsoft.Json;
-#else
-using System.Collections.Specialized;
-using System.Web.Script.Serialization;
-#endif
+using Newtonsoft.Json.Converters;
 
 // FxCop suppressions for resource strings:
 [module: SuppressMessage("Microsoft.Naming", "CA1703:ResourceStringsShouldBeSpelledCorrectly", Scope = "resource", Target = "WebCmdletStrings.resources", MessageId = "json")]
@@ -29,7 +25,7 @@ namespace Microsoft.PowerShell.Commands
     /// The ConvertTo-Json command
     /// This command convert an object to a Json string representation
     /// </summary>
-    [Cmdlet(VerbsData.ConvertTo, "Json", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=217032", RemotingCapability = RemotingCapability.None)]
+    [Cmdlet(VerbsData.ConvertTo, "Json", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=217032", RemotingCapability = RemotingCapability.None)]
     [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly")]
     public class ConvertToJsonCommand : PSCmdlet
     {
@@ -60,6 +56,15 @@ namespace Microsoft.PowerShell.Commands
         [Parameter]
         public SwitchParameter Compress { get; set; }
 
+        /// <summary>
+        /// gets or sets the EnumsAsStrings property.
+        /// If the EnumsAsStrings property is set to true, enum values will
+        /// be converted to their string equivalent. Otherwise, enum values
+        /// will be converted to their numeric equivalent.
+        /// </summary>
+        [Parameter()]
+        public SwitchParameter EnumsAsStrings { get; set; }
+
         #endregion parameters
 
         #region overrides
@@ -78,22 +83,6 @@ namespace Microsoft.PowerShell.Commands
                                 ErrorCategory.InvalidOperation,
                                 null));
             }
-#if CORECLR
-            JsonObject.ImportJsonDotNetModule(this);
-#else
-            try
-            {
-                System.Reflection.Assembly.Load(new AssemblyName("System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"));
-            }
-            catch (System.IO.FileNotFoundException)
-            {
-                ThrowTerminatingError(new ErrorRecord(
-                    new NotSupportedException(WebCmdletStrings.ExtendedProfileRequired),
-                    "ExtendedProfileRequired",
-                    ErrorCategory.NotInstalled,
-                    null));
-            }
-#endif
         }
 
         private List<object> _inputObjects = new List<object>();
@@ -120,19 +109,17 @@ namespace Microsoft.PowerShell.Commands
                 // Pre-process the object so that it serializes the same, except that properties whose
                 // values cannot be evaluated are treated as having the value null.
                 object preprocessedObject = ProcessValue(objectToProcess, 0);
-#if CORECLR
-                string output = JsonConvert.SerializeObject(preprocessedObject, new JsonSerializerSettings() { TypeNameHandling = TypeNameHandling.None, MaxDepth = 1024 });
-#else
-                // In Full CLR, we use the JavaScriptSerializer for which RecursionLimit was set to the default value of 100 (the actual recursion limit is 99 since
-                // at 100 the exception is thrown). See https://msdn.microsoft.com/en-us/library/system.web.script.serialization.javascriptserializer.recursionlimit(v=vs.110).aspx
-                // ProcessValue creates an object to be serialized from 1 to depth. However, the properties of the object at 'depth' should also be serialized, 
-                // and from the perspective of the serializer, this means it needs to support serializing depth + 1. For the JavaScriptSerializer to support this, 
-                // RecursionLimit needs to be set to depth + 2.
-                JavaScriptSerializer helper = new JavaScriptSerializer() { RecursionLimit = (maxDepthAllowed + 2) };
-                helper.MaxJsonLength = Int32.MaxValue;
-                string output = helper.Serialize(preprocessedObject);
-#endif
-                WriteObject(Compress ? output : ConvertToPrettyJsonString(output));
+                JsonSerializerSettings jsonSettings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.None, MaxDepth = 1024 };
+                if (EnumsAsStrings)
+                {
+                    jsonSettings.Converters.Add(new StringEnumConverter());
+                }
+                if (!Compress)
+                {
+                    jsonSettings.Formatting = Formatting.Indented;
+                }
+                string output = JsonConvert.SerializeObject(preprocessedObject, jsonSettings);
+                WriteObject(output);
             }
         }
 
@@ -253,7 +240,7 @@ namespace Microsoft.PowerShell.Commands
                 if (json[i] == '"')
                 {
                     // Ensure that the quote is not escaped by iteratively searching backwards for the backslash.
-                    // Examples: 
+                    // Examples:
                     //      "a \" b" --> here second quote is escaped
                     //      "c:\\"  --> here second quote is not escaped
                     //
@@ -296,7 +283,7 @@ namespace Microsoft.PowerShell.Commands
             bool headChar = true;
             bool beforeQuote = true;
             int newSpaceCount = 0;
-            const int spaceCountAfterQuoteMark = 2;
+            const int spaceCountAfterQuoteMark = 1;
 
             for (int i = index; i < json.Length; i++)
             {
@@ -327,7 +314,7 @@ namespace Microsoft.PowerShell.Commands
                         int end = ConvertQuotedString(json, i + 1, result);
                         if (beforeQuote)
                         {
-                            newSpaceCount += (end - i + 1);
+                            newSpaceCount = 0;
                         }
                         i = end;
                         headChar = false;
@@ -335,7 +322,6 @@ namespace Microsoft.PowerShell.Commands
                     case ':':
                         result.Append(json[i]);
                         AddSpaces(spaceCountAfterQuoteMark, result);
-                        newSpaceCount += 3;
                         headChar = false;
                         beforeQuote = false;
                         break;
@@ -373,7 +359,7 @@ namespace Microsoft.PowerShell.Commands
         /// <param name="result"></param>
         private void AddIndentations(int numberOfTabsToReturn, StringBuilder result)
         {
-            int realNumber = numberOfTabsToReturn * 4;
+            int realNumber = numberOfTabsToReturn * 2;
             for (int i = 0; i < realNumber; i++)
             {
                 result.Append(' ');
@@ -395,10 +381,8 @@ namespace Microsoft.PowerShell.Commands
 
         private ErrorRecord NewError()
         {
-            ErrorDetails details = new ErrorDetails(this.GetType().GetTypeInfo().Assembly,
-                "WebCmdletStrings", "JsonStringInBadFormat");
             ErrorRecord errorRecord = new ErrorRecord(
-                new InvalidOperationException(details.Message),
+                new InvalidOperationException(WebCmdletStrings.JsonStringInBadFormat),
                 "JsonStringInBadFormat",
                 ErrorCategory.InvalidOperation,
                 InputObject);
@@ -408,9 +392,9 @@ namespace Microsoft.PowerShell.Commands
         #endregion convertOutputToPrettierFormat
 
         /// <summary>
-        /// Return an alternate representation of the specified object that serializes the same JSON, except 
+        /// Return an alternate representation of the specified object that serializes the same JSON, except
         /// that properties that cannot be evaluated are treated as having the value null.
-        /// 
+        ///
         /// Primitive types are returned verbatim.  Aggregate types are processed recursively.
         /// </summary>
         /// <param name="obj">The object to be processed</param>
@@ -442,6 +426,10 @@ namespace Microsoft.PowerShell.Commands
             {
                 rv = obj;
             }
+            else if (obj is Newtonsoft.Json.Linq.JObject jObject)
+            {
+                rv = jObject.ToObject<Dictionary<object,object>>();
+            }
             else
             {
                 TypeInfo t = obj.GetType().GetTypeInfo();
@@ -452,7 +440,7 @@ namespace Microsoft.PowerShell.Commands
                 }
                 else if (t.IsEnum)
                 {
-                    // Win8:378368 Enums based on System.Int64 or System.UInt64 are not JSON-serializable 
+                    // Win8:378368 Enums based on System.Int64 or System.UInt64 are not JSON-serializable
                     // because JavaScript does not support the necessary precision.
                     Type enumUnderlyingType = Enum.GetUnderlyingType(obj.GetType());
                     if (enumUnderlyingType.Equals(typeof(Int64)) || enumUnderlyingType.Equals(typeof(UInt64)))
@@ -470,7 +458,7 @@ namespace Microsoft.PowerShell.Commands
                     {
                         if (pso != null && pso.immediateBaseObjectIsEmpty)
                         {
-                            // The obj is a pure PSObject, we convet the original PSObject to a string, 
+                            // The obj is a pure PSObject, we convert the original PSObject to a string,
                             // instead of its base object in this case
                             rv = LanguagePrimitives.ConvertTo(pso, typeof(string),
                                 CultureInfo.InvariantCulture);
@@ -498,11 +486,7 @@ namespace Microsoft.PowerShell.Commands
                             }
                             else
                             {
-#if CORECLR
                                 rv = ProcessCustomObject<JsonIgnoreAttribute>(obj, depth);
-#else
-                                rv = ProcessCustomObject<ScriptIgnoreAttribute>(obj, depth);
-#endif
                                 isCustomObj = true;
                             }
                         }
@@ -535,7 +519,7 @@ namespace Microsoft.PowerShell.Commands
             if (pso == null)
                 return obj;
 
-            // when isPurePSObj is true, the obj is guaranteed to be a string convertted by LanguagePrimitives
+            // when isPurePSObj is true, the obj is guaranteed to be a string converted by LanguagePrimitives
             if (isPurePSObj)
                 return obj;
 
@@ -562,7 +546,7 @@ namespace Microsoft.PowerShell.Commands
         /// If the passed in object is a custom object (not a simple object, not a dictionary, not a list, get processed in ProcessCustomObject method),
         /// we also take Adapted properties into account. Otherwise, we only consider the Extended properties.
         /// When the object is a pure PSObject, it also gets processed in "ProcessCustomObject" before reaching this method, so we will
-        /// iterate both extended and adapted proerpties for it. Since it's a pure PSObject, there will be no adapted properties.
+        /// iterate both extended and adapted properties for it. Since it's a pure PSObject, there will be no adapted properties.
         /// </summary>
         /// <param name="psobj">The containing PSObject, or null if the base object was not contained in a PSObject</param>
         /// <param name="receiver">The dictionary to which any additional properties will be appended</param>
@@ -583,9 +567,8 @@ namespace Microsoft.PowerShell.Commands
                 {
                     value = prop.Value;
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    UtilityCommon.CheckForSevereException(this, ex);
                 }
 
                 if (!receiver.Contains(prop.Name))
@@ -596,7 +579,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// Return an alternate representation of the specified dictionary that serializes the same JSON, except 
+        /// Return an alternate representation of the specified dictionary that serializes the same JSON, except
         /// that any contained properties that cannot be evaluated are treated as having the value null.
         /// </summary>
         /// <param name="dict"></param>
@@ -626,7 +609,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// Return an alternate representation of the specified collection that serializes the same JSON, except 
+        /// Return an alternate representation of the specified collection that serializes the same JSON, except
         /// that any contained properties that cannot be evaluated are treated as having the value null.
         /// </summary>
         /// <param name="enumerable"></param>
@@ -645,9 +628,9 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// Return an alternate representation of the specified aggregate object that serializes the same JSON, except 
+        /// Return an alternate representation of the specified aggregate object that serializes the same JSON, except
         /// that any contained properties that cannot be evaluated are treated as having the value null.
-        /// 
+        ///
         /// The result is a dictionary in which all public fields and public gettable properties of the original object
         /// are represented.  If any exception occurs while retrieving the value of a field or property, that entity
         /// is included in the output dictionary with a value of null.

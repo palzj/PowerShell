@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.4)
+cmake_minimum_required(VERSION 3.10.0)
 
 project(PowerShellNative)
 
@@ -9,27 +9,34 @@ if (NOT $ENV{${WindowsSDKVersion}})
     message (FATAL_ERROR "WindowsSDKVersion environment variable not found")
 endif ()
 
-if (NOT $ENV{${Platform}})
-    message(FATAL_ERROR "Platform environment variable not found")
-else ()
-    SET(WindowsSDKPlatform "$ENV{Platform}")
-endif ()
-
 #
 # Normalize the platform name
-#
-# TODO: Only x64 and x86 are supported right now. This needs to be expanded to arm and arm64 to match CoreCLR
-#
 SET(BUILD_ARCH_ARM 0)
 SET(BUILD_ARCH_ARM64 0)
+SET(BUILD_ARCH_X86 0) 
+SET(BUILD_ARCH_AMD64 0)
+
+if (BUILD_TARGET_ARCH)
+    SET(WindowsSDKPlatform ${BUILD_TARGET_ARCH})
+    message(STATUS "Building for " ${BUILD_TARGET_ARCH})
+else ()
+    message(FATAL_ERROR "Target architecture value should be specified through BUILD_TARGET_ARCH. Supported values are x64, x86, arm, or arm64")
+endif (BUILD_TARGET_ARCH)
+
 if (WindowsSDKPlatform STREQUAL "x64" OR WindowsSDKPlatform STREQUAL "X64" OR WindowsSDKPlatform STREQUAL "amd64" OR WindowsSDKPlatform STREQUAL "AMD64")
     SET(WindowsSDKPlatform "x64")
     SET(BUILD_ARCH_AMD64 1)
 elseif (WindowsSDKPlatform STREQUAL "x86" OR WindowsSDKPlatform STREQUAL "X86")
     SET(WindowsSDKPlatform "x86")
     SET(BUILD_ARCH_X86 1)
+elseif (WindowsSDKPlatform STREQUAL "arm" OR WindowsSDKPlatform STREQUAL "ARM")
+    SET(WindowsSDKPlatform "arm")
+    SET(BUILD_ARCH_ARM 1)
+elseif (WindowsSDKPlatform STREQUAL "arm64" OR WindowsSDKPlatform STREQUAL "ARM64")
+    SET(WindowsSDKPlatform "arm64")
+    SET(BUILD_ARCH_ARM64 1)
 else()
-    message(FATAL_ERROR "Unsupported WindowsSDKPlatform ${WindowsSDKPlatform}")
+    message(FATAL_ERROR "Unsupported WindowsSDKPlatform: " ${WindowsSDKPlatform})
 endif ()
 
 #

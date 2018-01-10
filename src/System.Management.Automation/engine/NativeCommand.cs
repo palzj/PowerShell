@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Management.Automation.Internal;
@@ -28,11 +28,8 @@ namespace System.Management.Automation
                 if (_myCommandProcessor != null)
                     _myCommandProcessor.StopProcessing();
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                CommandProcessorBase.CheckForSevereException(e);
-                // Ignore exceptions here...
-                ;
             }
         }
     }

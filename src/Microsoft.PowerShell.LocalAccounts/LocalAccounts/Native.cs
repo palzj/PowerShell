@@ -6,7 +6,7 @@ namespace System.Management.Automation.SecurityAccountsManager.Native
 {
     #region Enums
     internal enum POLICY_INFORMATION_CLASS
-    { 
+    {
         PolicyAuditLogInformation        = 1,
         PolicyAuditEventsInformation,
         PolicyPrimaryDomainInformation,
@@ -52,15 +52,15 @@ namespace System.Management.Automation.SecurityAccountsManager.Native
         SidTypeComputer,
         SidTypeLabel
     }
-  
-    internal enum LSA_USER_ACCOUNT_TYPE  
-    {  
-        UnknownUserAccountType = 0,  
-        LocalUserAccountType,  
-        PrimaryDomainUserAccountType,  
-        ExternalDomainUserAccountType,  
-        LocalConnectedUserAccountType,  // Microsoft Account  
-        AADUserAccountType,  
+
+    internal enum LSA_USER_ACCOUNT_TYPE
+    {
+        UnknownUserAccountType = 0,
+        LocalUserAccountType,
+        PrimaryDomainUserAccountType,
+        ExternalDomainUserAccountType,
+        LocalConnectedUserAccountType,  // Microsoft Account
+        AADUserAccountType,
         InternetUserAccountType,        // Generic internet User (eg. if the SID supplied is MSA's internet SID)
         MSAUserAccountType      // !!! NOT YET IN THE ENUM SPECIFIED IN THE C API !!!
 
@@ -155,7 +155,7 @@ namespace System.Management.Automation.SecurityAccountsManager.Native
         {
             if (objectName != IntPtr.Zero)
             {
-                ClrFacade.DestroyStructure<UNICODE_STRING>(objectName);
+                Marshal.DestroyStructure<UNICODE_STRING>(objectName);
                 Marshal.FreeHGlobal(objectName);
                 objectName = IntPtr.Zero;
             }
@@ -178,73 +178,6 @@ namespace System.Management.Automation.SecurityAccountsManager.Native
     }
 #pragma warning restore 0649, 0169
     #endregion Structures
-
-    /// <summary>
-    /// Wraps calls to Marshal functions that differ between .Net 4.5 and CoreCLR. .Net 4.5.1 types are not allowed for PowerShell.
-    /// </summary>
-    internal class ClrFacade
-    {
-        /// <summary>
-        /// Private constructor to prevent auto-generation of a default constructor
-        /// </summary>
-        private ClrFacade()
-        {
-        }
-
-        /// <summary>
-        /// Facade for Marshal.SizeOf
-        /// </summary>
-        internal static int SizeOf<T>()
-        {
-#if CORECLR
-            // Marshal.SizeOf(Type) is obsolete in CoreCLR
-            return Marshal.SizeOf<T>();
-#else
-            return Marshal.SizeOf(typeof(T));
-#endif
-        }
-
-        /// <summary>
-        /// Facade for Marshal.DestroyStructure
-        /// </summary>
-        internal static void DestroyStructure<T>(IntPtr ptr)
-        {
-#if CORECLR
-            // Marshal.DestroyStructure(IntPtr, Type) is obsolete in CoreCLR
-            Marshal.DestroyStructure<T>(ptr);
-#else
-            Marshal.DestroyStructure(ptr, typeof(T));
-#endif
-        }
-
-        /// <summary>
-        /// Facade for Marshal.PtrToStructure
-        /// </summary>
-        internal static T PtrToStructure<T>(IntPtr ptr)
-        {
-#if CORECLR
-            // Marshal.PtrToStructure(IntPtr, Type) is obsolete in CoreCLR
-            return Marshal.PtrToStructure<T>(ptr);
-#else
-            return (T)Marshal.PtrToStructure(ptr, typeof(T));
-#endif
-        }
-
-        /// <summary>
-        /// Wraps Marshal.StructureToPtr to hide differences between the CLRs.
-        /// </summary>
-        internal static void StructureToPtr<T>(
-            T structure,
-            IntPtr ptr,
-            bool deleteOld)
-        {
-#if CORECLR
-            Marshal.StructureToPtr<T>( structure, ptr, deleteOld );
-#else
-            Marshal.StructureToPtr(structure, ptr, deleteOld);
-#endif
-        }
-    }
 
     internal static class Win32
     {
@@ -352,7 +285,7 @@ namespace System.Management.Automation.SecurityAccountsManager.Native
         // The system call level is not correct.
         //
         internal const int ERROR_INVALID_LEVEL          = 124;
-        
+
         //
         // MessageId: ERROR_INVALID_FLAGS
         //
@@ -379,7 +312,7 @@ namespace System.Management.Automation.SecurityAccountsManager.Native
         // Unable to update the password. The value provided for the new password does not meet the length, complexity, or history requirements of the domain.
         //
         internal const UInt32 ERROR_PASSWORD_RESTRICTION    = 1325;
-        
+
         //
         // MessageText:
         //
@@ -414,7 +347,7 @@ namespace System.Management.Automation.SecurityAccountsManager.Native
         #endregion Constants
 
         #region Win32 Functions
-        [DllImport(PInvokeDllNames.LookupAccountSidDllName, CharSet = CharSet.Unicode, SetLastError = true)]  
+        [DllImport(PInvokeDllNames.LookupAccountSidDllName, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool LookupAccountSid(string systemName,
                                                      byte[] accountSid,
                                                      StringBuilder accountName,

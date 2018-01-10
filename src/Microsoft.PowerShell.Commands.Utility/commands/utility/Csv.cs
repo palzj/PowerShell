@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.ObjectModel;
@@ -19,13 +19,13 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Gets or sets the delimiter that separates the values
         /// </summary>
-        /// 
+        ///
         internal char Delimiter { get; } = ',';
 
         /// <summary>
         /// Parse a CSV String.
         /// </summary>
-        /// 
+        ///
         /// <param name="csv">
         /// String to be parsed
         /// </param>

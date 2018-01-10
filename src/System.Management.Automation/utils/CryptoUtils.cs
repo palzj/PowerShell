@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Text;
@@ -7,17 +7,11 @@ using System.Security;
 using System.Threading;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using System.Runtime.ConstrainedExecution;
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics.CodeAnalysis;
 using Dbg = System.Management.Automation.Diagnostics;
 using System.Management.Automation.Remoting;
-
-#if CORECLR
-// Use stubs for SerializableAttribute, SecurityPermissionAttribute, ReliabilityContractAttribute and ISerializable related types.
-using Microsoft.PowerShell.CoreClr.Stubs;
-#else
-using System.Runtime.ConstrainedExecution;
-#endif
 
 namespace System.Management.Automation.Internal
 {
@@ -49,7 +43,7 @@ namespace System.Management.Automation.Internal
     }
 
     /// <summary>
-    /// Class the encapsulates native crypto key handles and provides a 
+    /// Class the encapsulates native crypto key handles and provides a
     /// mechanism to release resources used by it
     /// </summary>
     //[SecurityPermission(SecurityAction.Demand, UnmanagedCode=true)]
@@ -248,7 +242,7 @@ namespace System.Management.Automation.Internal
         public const int AT_KEYEXCHANGE = 1;
 
         /// <summary>
-        /// RSA Key 
+        /// RSA Key
         /// </summary>
         public const int CALG_RSA_KEYX =
             (PSCryptoNativeUtils.ALG_CLASS_KEY_EXCHANGE |
@@ -265,7 +259,7 @@ namespace System.Management.Automation.Internal
         public const int ALG_TYPE_RSA = (2) << (9);
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public const int ALG_SID_RSA_ANY = 0;
 
@@ -285,12 +279,12 @@ namespace System.Management.Automation.Internal
         public const int CALG_AES_256 = (ALG_CLASS_DATA_ENCRYPT | ALG_TYPE_BLOCK | ALG_SID_AES_256);
 
         /// <summary>
-        /// ALG_CLASS_DATA_ENCRYPT 
+        /// ALG_CLASS_DATA_ENCRYPT
         /// </summary>
         public const int ALG_CLASS_DATA_ENCRYPT = (3) << (13);
 
         /// <summary>
-        /// ALG_TYPE_BLOCK 
+        /// ALG_TYPE_BLOCK
         /// </summary>
         public const int ALG_TYPE_BLOCK = (3) << (9);
 
@@ -371,8 +365,8 @@ namespace System.Management.Automation.Internal
         /// Constructor with inner exception
         /// </summary>
         /// <param name="message">error message</param>
-        /// <param name="innerException">innter exception</param>
-        /// <remarks>This constructor is currently not called 
+        /// <param name="innerException">inner exception</param>
+        /// <remarks>This constructor is currently not called
         /// explicitly from crypto utils</remarks>
         public PSCryptoException(string message, Exception innerException) :
             base(message, innerException)
@@ -380,7 +374,6 @@ namespace System.Management.Automation.Internal
             _errorCode = unchecked((uint)-1);
         }
 
-#if !CORECLR
         /// <summary>
         /// Constructor which has type specific serialization logic
         /// </summary>
@@ -395,12 +388,10 @@ namespace System.Management.Automation.Internal
             _errorCode = unchecked(0xFFFFFFF);
             Dbg.Assert(false, "type-specific serialization logic not implemented and so this constructor should not be called");
         }
-#endif
+
         #endregion Constructors
 
         #region ISerializable Overrides
-
-#if !CORECLR
         /// <summary>
         /// Returns base implementation
         /// </summary>
@@ -410,13 +401,12 @@ namespace System.Management.Automation.Internal
         {
             base.GetObjectData(info, context);
         }
-#endif
         #endregion ISerializable Overrides
     }
 
     /// <summary>
-    /// One of the issues with RSACryptoServiceProvider is that it never uses CRYPT_VERIFYCONTEXT 
-    /// to create ephemeral keys.  This class is a facade written on top of native CAPI APIs 
+    /// One of the issues with RSACryptoServiceProvider is that it never uses CRYPT_VERIFYCONTEXT
+    /// to create ephemeral keys.  This class is a facade written on top of native CAPI APIs
     /// to create ephemeral keys.
     /// </summary>
     internal class PSRSACryptoServiceProvider : IDisposable
@@ -427,7 +417,7 @@ namespace System.Management.Automation.Internal
         // handle to the provider
         private bool _canEncrypt = false;            // this flag indicates that this class has a key
         // imported from the remote end and so can be
-        // used for encryption  
+        // used for encryption
         private PSSafeCryptKey _hRSAKey;
         // handle to the RSA key with which the session
         // key is exchange. This can either be generated
@@ -512,7 +502,7 @@ namespace System.Management.Automation.Internal
         }
 
         /// <summary>
-        /// Generates an AEX-256 sessin key if one is not already generated
+        /// Generates an AEX-256 session key if one is not already generated
         /// </summary>
         internal void GenerateSessionKey()
         {
@@ -537,8 +527,8 @@ namespace System.Management.Automation.Internal
         }
 
         /// <summary>
-        /// 1. Generate a AES-256 session key 
-        /// 2. Encrypt the session key with the Imported 
+        /// 1. Generate a AES-256 session key
+        /// 2. Encrypt the session key with the Imported
         ///    RSA public key
         /// 3. Encode result above as base 64 string and export
         /// </summary>
@@ -649,13 +639,13 @@ namespace System.Management.Automation.Internal
                                                         ref dataLength,
                                                         data.Length);
 
-            // if encryption failed, then dataLength will contain the length 
+            // if encryption failed, then dataLength will contain the length
             // of buffer needed to store the encrypted contents. Recreate
             // the buffer
             if (false == ret)
             {
                 // before reallocating the encryptedData buffer,
-                // zero out its contents                
+                // zero out its contents
                 for (int i = 0; i < encryptedData.Length; i++)
                 {
                     encryptedData[i] = 0;
@@ -707,7 +697,7 @@ namespace System.Management.Automation.Internal
                                                         decryptedData,
                                                         ref dataLength);
 
-            // if decryption failed, then dataLength will contain the length 
+            // if decryption failed, then dataLength will contain the length
             // of buffer needed to store the decrypted contents. Recreate
             // the buffer
             if (false == ret)
@@ -782,7 +772,7 @@ namespace System.Management.Automation.Internal
         }
 
         /// <summary>
-        /// Indicates if a key exchange is complete 
+        /// Indicates if a key exchange is complete
         /// and this provider can encrypt
         /// </summary>
         internal bool CanEncrypt
@@ -860,7 +850,7 @@ namespace System.Management.Automation.Internal
         #region IDisposable
 
         /// <summary>
-        /// Dipose resources
+        /// Dispose resources
         /// </summary>
         public void Dispose()
         {
@@ -884,7 +874,7 @@ namespace System.Management.Automation.Internal
 
                 // we need to dismiss the provider and key
                 // only if the static members are not allocated
-                // since otherwise, these are just references 
+                // since otherwise, these are just references
                 // to the static members
 
                 if (null == s_hStaticRSAKey)
@@ -945,7 +935,7 @@ namespace System.Management.Automation.Internal
         protected PSRSACryptoServiceProvider _rsaCryptoProvider;
 
         /// <summary>
-        /// Key exchange has been completed and both keys 
+        /// Key exchange has been completed and both keys
         /// available
         /// </summary>
         protected ManualResetEvent _keyExchangeCompleted = new ManualResetEvent(false);
@@ -958,7 +948,7 @@ namespace System.Management.Automation.Internal
         private bool _keyExchangeStarted = false;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected void RunKeyExchangeIfRequired()
         {
@@ -1005,7 +995,7 @@ namespace System.Management.Automation.Internal
 
             if (_rsaCryptoProvider.CanEncrypt)
             {
-                IntPtr ptr = ClrFacade.SecureStringToCoTaskMemUnicode(secureString);
+                IntPtr ptr = Marshal.SecureStringToCoTaskMemUnicode(secureString);
 
                 if (ptr != IntPtr.Zero)
                 {
@@ -1032,7 +1022,7 @@ namespace System.Management.Automation.Internal
             } // if (rsa != null...
             else
             {
-                Dbg.Assert(false, "Session key not availble to encrypt secure string");
+                Dbg.Assert(false, "Session key not available to encrypt secure string");
             }
 
             return encryptedDataAsString;
@@ -1047,12 +1037,12 @@ namespace System.Management.Automation.Internal
         /// <returns></returns>
         protected SecureString DecryptSecureStringCore(String encryptedString)
         {
-            // removing an earlier assert from here. It is 
-            // possible to encrypt and decrypt empty 
+            // removing an earlier assert from here. It is
+            // possible to encrypt and decrypt empty
             // secure strings
             SecureString secureString = null;
 
-            // before you can decrypt a key exchange should have 
+            // before you can decrypt a key exchange should have
             // happened successfully
             if (_rsaCryptoProvider.CanEncrypt)
             {
@@ -1135,7 +1125,7 @@ namespace System.Management.Automation.Internal
         internal abstract RemoteSession Session { get; set; }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public void Dispose()
         {
@@ -1144,7 +1134,7 @@ namespace System.Management.Automation.Internal
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="disposing"></param>
         public void Dispose(bool disposing)
@@ -1196,7 +1186,11 @@ namespace System.Management.Automation.Internal
         /// </summary>
         internal PSRemotingCryptoHelperServer()
         {
+#if UNIX
+            _rsaCryptoProvider = null;
+#else
             _rsaCryptoProvider = PSRSACryptoServiceProvider.GetRSACryptoServiceProviderForServer();
+#endif
         }
 
         #endregion Constructors
@@ -1208,7 +1202,7 @@ namespace System.Management.Automation.Internal
             ServerRemoteSession session = Session as ServerRemoteSession;
 
             //session!=null check required for DRTs TestEncryptSecureString* entries in CryptoUtilsTest/UTUtils.dll
-            //for newer clients, server will never initiate key exchange. 
+            //for newer clients, server will never initiate key exchange.
             //for server, just the session key is required to encrypt/decrypt anything
             if ((session != null) && (session.Context.ClientCapability.ProtocolVersion >= RemotingConstants.ProtocolVersionWin8RTM))
             {
@@ -1269,7 +1263,7 @@ namespace System.Management.Automation.Internal
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="encryptedSessionKey"></param>
         /// <returns></returns>
@@ -1386,13 +1380,13 @@ namespace System.Management.Automation.Internal
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="encryptedSessionKey"></param>
         /// <returns></returns>
         internal bool ImportEncryptedSessionKey(string encryptedSessionKey)
         {
-            Dbg.Assert(!String.IsNullOrEmpty(encryptedSessionKey), "encrypted sessoin key passed in cannot be null");
+            Dbg.Assert(!String.IsNullOrEmpty(encryptedSessionKey), "encrypted session key passed in cannot be null");
 
             try
             {

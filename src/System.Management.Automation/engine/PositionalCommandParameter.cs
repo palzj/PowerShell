@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.ObjectModel;
@@ -14,7 +14,7 @@ namespace System.Management.Automation
         /// Constructs a container for the merged parameter metadata and
         /// parameter set specific metadata for a positional parameter
         /// </summary>
-        /// 
+        ///
         internal PositionalCommandParameter(MergedCompiledCommandParameter parameter)
         {
             Parameter = parameter;

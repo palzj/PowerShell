@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Management.Automation;
@@ -8,9 +8,9 @@ using System.Management.Automation.Internal;
 namespace Microsoft.PowerShell.Commands
 {
     /// <summary>
-    /// Class implemeting Invoke-Expression
+    /// Class implementing Invoke-Expression
     /// </summary>
-    [Cmdlet("Invoke", "Expression", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113343")]
+    [Cmdlet(VerbsLifecycle.Invoke, "Expression", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113343")]
     public sealed
     class
     InvokeExpressionCommand : PSCmdlet
@@ -26,7 +26,7 @@ namespace Microsoft.PowerShell.Commands
         #endregion parameters
 
         /// <summary>
-        /// For each record, execute it, and push the results into the 
+        /// For each record, execute it, and push the results into the
         /// success stream.
         /// </summary>
         protected override void ProcessRecord()

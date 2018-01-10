@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 #pragma warning disable 1634, 1691
@@ -7,16 +7,9 @@ Copyright (c) Microsoft Corporation.  All rights reserved.
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Security;
-using SafeString = System.String;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using Microsoft.PowerShell;
-
-#if CORECLR
-// Use stubs for ISerializable related types
-using Microsoft.PowerShell.CoreClr.Stubs;
-using System.Runtime.InteropServices;
-#endif
 
 // FxCop suppressions for resource strings:
 [module: SuppressMessage("Microsoft.Naming", "CA1703:ResourceStringsShouldBeSpelledCorrectly", Scope = "resource", Target = "Credential.resources", MessageId = "Cred")]
@@ -81,7 +74,7 @@ namespace System.Management.Automation
     }
 
     /// <summary>
-    /// Declare a delegate which returns the encryption key and initialization vector for symmetric encryption algorithem.
+    /// Declare a delegate which returns the encryption key and initialization vector for symmetric encryption algorithm.
     /// </summary>
     /// <param name="context">The streaming context, which contains the searilization context.</param>
     /// <param name="key">Symmetric encryption key.</param>
@@ -163,8 +156,8 @@ namespace System.Management.Automation
             _userName = (string)info.GetValue("UserName", typeof(string));
 
             // deserialize to secure string
-            SafeString safePassword = (SafeString)info.GetValue("Password", typeof(SafeString));
-            if (safePassword == SafeString.Empty)
+            string safePassword = (string)info.GetValue("Password", typeof(string));
+            if (safePassword == string.Empty)
             {
                 _password = new SecureString();
             }
@@ -196,7 +189,7 @@ namespace System.Management.Automation
 
         /// <summary>
         /// User's password.
-        /// </summary> 
+        /// </summary>
         public SecureString Password
         {
             get { return _password; }
@@ -250,14 +243,14 @@ namespace System.Management.Automation
         /// <summary>
         /// Returns an equivalent NetworkCredential object for this
         /// PSCredential.
-        /// 
+        ///
         /// A null is returned if
         /// -- current object has not been initialized
         /// -- current creds are not compatible with NetworkCredential
         ///    (such as smart card creds or cert creds)
         /// </summary>
         ///
-        /// <returns> 
+        /// <returns>
         ///     null if the current object has not been initialized.
         ///     null if the current credentials are incompatible with
         ///       a NetworkCredential -- such as smart card credentials.
@@ -272,27 +265,7 @@ namespace System.Management.Automation
 
                 if (IsValidUserName(_userName, out user, out domain))
                 {
-#if CORECLR
-                    // NetworkCredential constructor only accepts plain string password in CoreCLR
-                    // Since user can already access the plain text password via PSCredential.GetNetworkCredential().Password,
-                    // this change won't be a security issue for PS on CSS.
-                    IntPtr unmanagedPtr = IntPtr.Zero;
-                    try
-                    {
-                        unmanagedPtr = ClrFacade.SecureStringToCoTaskMemUnicode(_password);
-                        string pwdInPlainText = System.Runtime.InteropServices.Marshal.PtrToStringUni(unmanagedPtr);
-                        _netCred = new NetworkCredential(user, pwdInPlainText, domain);
-                    }
-                    finally
-                    {
-                        if (unmanagedPtr != IntPtr.Zero)
-                        {
-                            Marshal.ZeroFreeCoTaskMemUnicode(unmanagedPtr);
-                        }
-                    }
-#else
                     _netCred = new NetworkCredential(user, _password, domain);
-#endif
                 }
             }
 
@@ -307,7 +280,7 @@ namespace System.Management.Automation
         ///
         /// <param name="credential"> PSCredential to convert. </param>
         ///
-        /// <returns> 
+        /// <returns>
         ///     null if the current object has not been initialized.
         ///     null if the current credentials are incompatible with
         ///       a NetworkCredential -- such as smart card credentials.
@@ -347,24 +320,30 @@ namespace System.Management.Automation
         /// two formats:
         /// -- domain\user
         /// -- user@domain
-        /// 
+        ///
         /// for any other format, we simply treat the entire string
         /// as user name and set domain name to "".
-        /// 
+        ///
         /// </summary>
         ///
         private static bool IsValidUserName(string input,
                                             out string user,
                                             out string domain)
         {
+            if (String.IsNullOrEmpty(input))
+            {
+                user = domain = null;
+                return false;
+            }
+
             SplitUserDomain(input, out user, out domain);
 
             if ((user == null) ||
                 (domain == null) ||
                 (user.Length == 0))
             {
-                //UserName is the public property of Credential object. Use this as 
-                //parameter name in error 
+                //UserName is the public property of Credential object. Use this as
+                //parameter name in error
                 //See bug NTRAID#Windows OS Bugs-1106386-2005/03/25-hiteshr
                 throw PSTraceSource.NewArgumentException("UserName", Credential.InvalidUserNameFormat);
             }
@@ -377,7 +356,7 @@ namespace System.Management.Automation
         /// components. Supported formats are:
         /// -- domain\user
         /// -- user@domain
-        /// 
+        ///
         /// With any other format, the entire input is treated as user
         /// name and domain is set to "".
         ///
@@ -406,7 +385,7 @@ namespace System.Management.Automation
             // This was breaking apps (i.e.: Exchange), so we need to make
             // Username = foo@bar.com if the domain has a dot in it (since
             // domains can't have dots).
-            // 
+            //
             // HOWEVER, there was a workaround for this bug in v1 and v2, where the
             // cred could be entered as "foo@bar.com@bar.com" - making:
             // Username = foo@bar.com, Domain = bar.com

@@ -1,8 +1,9 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.Collections;
@@ -12,11 +13,6 @@ using System.Management.Automation;
 using System.Management.Automation.Internal;
 using System.Globalization;
 using System.Diagnostics.CodeAnalysis;
-
-#if CORECLR
-// Use stub for ICloneable
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
 
 namespace Microsoft.PowerShell.Commands
 {
@@ -66,12 +62,13 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         public object Clone()
         {
-            MatchInfoContext clone = new MatchInfoContext();
-            clone.PreContext = (clone.PreContext != null) ? (string[])PreContext.Clone() : null;
-            clone.PostContext = (clone.PostContext != null) ? (string[])PostContext.Clone() : null;
-            clone.DisplayPreContext = (clone.DisplayPreContext != null) ? (string[])DisplayPreContext.Clone() : null;
-            clone.DisplayPostContext = (clone.DisplayPostContext != null) ? (string[])DisplayPostContext.Clone() : null;
-            return clone;
+            return new MatchInfoContext()
+            {
+                PreContext = (string[])PreContext?.Clone(),
+                PostContext = (string[])PostContext?.Clone(),
+                DisplayPreContext = (string[])DisplayPreContext?.Clone(),
+                DisplayPostContext = (string[])DisplayPostContext?.Clone()
+            };
         }
     }
 
@@ -217,7 +214,7 @@ namespace Microsoft.PowerShell.Commands
         /// Returns the string representation of the match object same format as ToString()
         /// but trims the path to be relative to the <paramref name="directory"/> argument.
         /// </summary>
-        /// <param name="directory">Directory to use as the root when calcualting the relative path</param>
+        /// <param name="directory">Directory to use as the root when calculating the relative path</param>
         /// <returns>The string representation of the match object</returns>
         public string ToString(string directory)
         {
@@ -296,7 +293,7 @@ namespace Microsoft.PowerShell.Commands
     /// <summary>
     /// A cmdlet to search through strings and files for particular patterns.
     /// </summary>
-    [Cmdlet("Select", "String", DefaultParameterSetName = "File", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113388")]
+    [Cmdlet(VerbsCommon.Select, "String", DefaultParameterSetName = "File", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113388")]
     [OutputType(typeof(MatchInfo), typeof(bool))]
     public sealed class SelectStringCommand : PSCmdlet
     {
@@ -727,7 +724,7 @@ namespace Microsoft.PowerShell.Commands
             // (the position between the pre/post context regions)
             // of this buffer, and the buffer is full, we will know
             // enough context to populate the Context properties of the
-            // match. At that point, we will add the match object 
+            // match. At that point, we will add the match object
             // to the emit queue.
             private CircularBuffer<ContextEntry> _collectedContext = null;
 
@@ -963,7 +960,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// This parameter specifies the current pipeline object 
+        /// This parameter specifies the current pipeline object
         /// </summary>
         [Parameter(ValueFromPipeline = true, Mandatory = true, ParameterSetName = "Object")]
         [AllowNull]
@@ -994,7 +991,7 @@ namespace Microsoft.PowerShell.Commands
         private Regex[] _regexPattern;
 
         /// <summary>
-        /// file to read from 
+        /// file to read from
         /// Globbing is done on these
         /// </summary>
         [Parameter(Position = 1, Mandatory = true, ValueFromPipelineByPropertyName = true, ParameterSetName = "File")]
@@ -1002,7 +999,7 @@ namespace Microsoft.PowerShell.Commands
         public string[] Path { get; set; }
 
         /// <summary>
-        /// Literal file to read from 
+        /// Literal file to read from
         /// Globbing is not done on these
         /// </summary>
         [Parameter(Mandatory = true, ValueFromPipelineByPropertyName = true, ParameterSetName = "LiteralFile")]
@@ -1023,7 +1020,7 @@ namespace Microsoft.PowerShell.Commands
         }
         private bool _isLiteralPath = false;
 
-        /// <summary> If set, match pattern string literally. 
+        /// <summary> If set, match pattern string literally.
         /// If not (default) search using pattern as a Regular Expression
         /// </summary>
         [Parameter]
@@ -1040,7 +1037,7 @@ namespace Microsoft.PowerShell.Commands
         }
         private bool _simpleMatch;
 
-        ///<summary> 
+        ///<summary>
         /// If true, then do case-sensitive searches...
         /// </summary>
         [Parameter]
@@ -1075,11 +1072,11 @@ namespace Microsoft.PowerShell.Commands
         }
         private bool _quiet;
 
-        /// <summary> 
+        /// <summary>
         /// list files where a match is found
-        /// This is the Unix functionality this switch is intended to mimic; 
-        /// the actual action of this option is to stop after the first match 
-        /// is found and returned from any particular file. 
+        /// This is the Unix functionality this switch is intended to mimic;
+        /// the actual action of this option is to stop after the first match
+        /// is found and returned from any particular file.
         /// </summary>
         [Parameter]
         public SwitchParameter List
@@ -1205,19 +1202,20 @@ namespace Microsoft.PowerShell.Commands
         /// The text encoding to process each file as.
         /// </summary>
         [Parameter]
-        [ValidateNotNullOrEmpty]
-        [ValidateSetAttribute(new string[] {
+        [ArgumentToEncodingTransformationAttribute()]
+        [ArgumentCompletions(
+            EncodingConversion.Ascii,
+            EncodingConversion.BigEndianUnicode,
+            EncodingConversion.OEM,
             EncodingConversion.Unicode,
             EncodingConversion.Utf7,
             EncodingConversion.Utf8,
-            EncodingConversion.Utf32,
-            EncodingConversion.Ascii,
-            EncodingConversion.BigEndianUnicode,
-            EncodingConversion.Default,
-            EncodingConversion.OEM })]
-        public string Encoding { get; set; }
-
-        private System.Text.Encoding _textEncoding;
+            EncodingConversion.Utf8Bom,
+            EncodingConversion.Utf8NoBom,
+            EncodingConversion.Utf32
+            )]
+        [ValidateNotNullOrEmpty]
+        public Encoding Encoding { get; set; } = ClrFacade.GetDefaultEncoding();
 
         /// <summary>
         /// The number of context lines to collect. If set to a
@@ -1286,16 +1284,6 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         protected override void BeginProcessing()
         {
-            // Process encoding switch.
-            if (Encoding != null)
-            {
-                _textEncoding = EncodingConversion.Convert(this, Encoding);
-            }
-            else
-            {
-                _textEncoding = new System.Text.UTF8Encoding();
-            }
-
             if (!_simpleMatch)
             {
                 RegexOptions regexOptions = (_caseSensitive) ? RegexOptions.None : RegexOptions.IgnoreCase;
@@ -1352,6 +1340,11 @@ namespace Microsoft.PowerShell.Commands
             {
                 foreach (string filename in expandedPaths)
                 {
+                    if (Directory.Exists(filename))
+                    {
+                        continue;
+                    }
+
                     bool foundMatch = ProcessFile(filename);
                     if (_quiet && foundMatch)
                         return;
@@ -1433,12 +1426,12 @@ namespace Microsoft.PowerShell.Commands
 
                 using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
-                    using (StreamReader sr = new StreamReader(fs, _textEncoding))
+                    using (StreamReader sr = new StreamReader(fs, Encoding))
                     {
                         String line;
                         int lineNo = 0;
 
-                        // Read and display lines from the file until the end of 
+                        // Read and display lines from the file until the end of
                         // the file is reached.
                         while ((line = sr.ReadLine()) != null)
                         {
@@ -1670,7 +1663,7 @@ namespace Microsoft.PowerShell.Commands
                 // to report in MatchInfo. However, that also
                 // means that patternIndex will have been
                 // incremented past the end of the pattern array.
-                // So reset it to select the first pattern. 
+                // So reset it to select the first pattern.
                 patternIndex = 0;
             }
 

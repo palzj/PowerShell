@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 namespace System.Management.Automation.Language
@@ -18,7 +18,7 @@ namespace System.Management.Automation.Language
         #region public_property
 
         /// <summary>
-        /// This overrides ToString() method and returns null. 
+        /// This overrides ToString() method and returns null.
         /// </summary>
         public override string ToString()
         {

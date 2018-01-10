@@ -1,11 +1,15 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
 using System.Management.Automation;
 using System.IO;
 using System.Xml;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System.Net.Http;
+using System.Text;
 
 namespace Microsoft.PowerShell.Commands
 {
@@ -14,14 +18,58 @@ namespace Microsoft.PowerShell.Commands
         #region Parameters
 
         /// <summary>
-        /// gets or sets the parameter Method 
+        /// gets or sets the parameter Method
         /// </summary>
-        [Parameter]
+        [Parameter(ParameterSetName = "StandardMethod")]
+        [Parameter(ParameterSetName = "StandardMethodNoProxy")]
         public override WebRequestMethod Method
         {
             get { return base.Method; }
             set { base.Method = value; }
         }
+
+        /// <summary>
+        /// gets or sets the parameter CustomMethod
+        /// </summary>
+        [Parameter(Mandatory=true,ParameterSetName = "CustomMethod")]
+        [Parameter(Mandatory=true,ParameterSetName = "CustomMethodNoProxy")]
+        [Alias("CM")]
+        [ValidateNotNullOrEmpty]
+        public override string CustomMethod
+        {
+            get { return base.CustomMethod; }
+            set { base.CustomMethod = value; }
+        }
+
+        /// <summary>
+        /// enable automatic following of rel links
+        /// </summary>
+        [Parameter]
+        [Alias("FL")]
+        public SwitchParameter FollowRelLink
+        {
+            get { return base._followRelLink; }
+            set { base._followRelLink = value; }
+        }
+
+        /// <summary>
+        /// gets or sets the maximum number of rel links to follow
+        /// </summary>
+        [Parameter]
+        [Alias("ML")]
+        [ValidateRange(1, Int32.MaxValue)]
+        public int MaximumFollowRelLink
+        {
+            get { return base._maximumFollowRelLink; }
+            set { base._maximumFollowRelLink = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the ResponseHeadersVariable property.
+        /// </summary>
+        [Parameter]
+        [Alias("RHV")]
+        public string ResponseHeadersVariable { get; set; }
 
         #endregion Parameters
 
@@ -54,7 +102,7 @@ namespace Microsoft.PowerShell.Commands
                 {
                     XmlDocument workingDocument = new XmlDocument();
                     // performing a Read() here to avoid rrechecking
-                    // "rss" or "feed" itmes
+                    // "rss" or "feed" items
                     reader.Read();
                     while (!reader.EOF)
                     {
@@ -96,6 +144,7 @@ namespace Microsoft.PowerShell.Commands
             xrs.IgnoreProcessingInstructions = true;
             xrs.MaxCharactersFromEntities = 1024;
             xrs.DtdProcessing = DtdProcessing.Ignore;
+            xrs.XmlResolver = null;
 
             return xrs;
         }
@@ -123,15 +172,27 @@ namespace Microsoft.PowerShell.Commands
 
         private bool TryConvertToJson(string json, out object obj, ref Exception exRef)
         {
+            bool converted = false;
             try
             {
                 ErrorRecord error;
                 obj = JsonObject.ConvertFromJson(json, out error);
 
+                if (null == obj)
+                {
+                    // This ensures that a null returned by ConvertFromJson() is the actual JSON null literal. 
+                    // if not, the ArgumentException will be caught.
+                    JToken.Parse(json);
+                }
+
                 if (error != null)
                 {
                     exRef = error.Exception;
                     obj = null;
+                }
+                else
+                {
+                    converted = true;
                 }
             }
             catch (ArgumentException ex)
@@ -144,7 +205,13 @@ namespace Microsoft.PowerShell.Commands
                 exRef = ex;
                 obj = null;
             }
-            return (null != obj);
+            catch (JsonException ex)
+            {
+                var msg = string.Format(System.Globalization.CultureInfo.CurrentCulture, WebCmdletStrings.JsonDeserializationFailed, ex.Message);
+                exRef = new ArgumentException(msg, ex);
+                obj = null;
+            }
+            return converted;
         }
 
         #endregion
@@ -155,7 +222,7 @@ namespace Microsoft.PowerShell.Commands
         public enum RestReturnType
         {
             /// <summary>
-            /// Return type not defined in reponse, 
+            /// Return type not defined in response,
             /// best effort detect
             /// </summary>
             Detect,
@@ -227,7 +294,7 @@ namespace Microsoft.PowerShell.Commands
                     ((Position + totalCount) > _streamBuffer.Length))
                 {
                     // If we don't have enough data to fill this from memory, cache more.
-                    // We try to read 4096 bytes from base stream every time, so at most we 
+                    // We try to read 4096 bytes from base stream every time, so at most we
                     // may cache 4095 bytes more than what is required by the Read operation.
                     int bytesRead = _baseStream.Read(_copyBuffer, 0, _copyBuffer.Length);
 
@@ -277,5 +344,127 @@ namespace Microsoft.PowerShell.Commands
                 throw new NotSupportedException();
             }
         }
+    }
+
+    // TODO: Merge Partials
+
+    /// <summary>
+    /// The Invoke-RestMethod command
+    /// This command makes an HTTP or HTTPS request to a web service,
+    /// and returns the response in an appropriate way.
+    /// Intended to work against the wide spectrum of "RESTful" web services
+    /// currently deployed across the web.
+    /// </summary>
+    [Cmdlet(VerbsLifecycle.Invoke, "RestMethod", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=217034", DefaultParameterSetName = "StandardMethod")]
+    public partial class InvokeRestMethodCommand : WebRequestPSCmdlet
+    {
+        #region Virtual Method Overrides
+
+        /// <summary>
+        /// Process the web response and output corresponding objects.
+        /// </summary>
+        /// <param name="response"></param>
+        internal override void ProcessResponse(HttpResponseMessage response)
+        {
+            if (null == response) { throw new ArgumentNullException("response"); }
+
+            using (BufferingStreamReader responseStream = new BufferingStreamReader(StreamHelper.GetResponseStream(response)))
+            {
+                if (ShouldWriteToPipeline)
+                {
+                    // First see if it is an RSS / ATOM feed, in which case we can
+                    // stream it - unless the user has overridden it with a return type of "XML"
+                    if (TryProcessFeedStream(responseStream))
+                    {
+                        // Do nothing, content has been processed.
+                    }
+                    else
+                    {
+                        // determine the response type
+                        RestReturnType returnType = CheckReturnType(response);
+
+                        // Try to get the response encoding from the ContentType header.
+                        Encoding encoding = null;
+                        string charSet = response.Content.Headers.ContentType?.CharSet;
+                        if (!string.IsNullOrEmpty(charSet))
+                        {
+                            // NOTE: Don't use ContentHelper.GetEncoding; it returns a
+                            // default which bypasses checking for a meta charset value.
+                            StreamHelper.TryGetEncoding(charSet, out encoding);
+                        }
+
+                        object obj = null;
+                        Exception ex = null;
+
+                        string str = StreamHelper.DecodeStream(responseStream, ref encoding);
+                        // NOTE: Tests use this verbose output to verify the encoding.
+                        WriteVerbose(string.Format
+                        (
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            "Content encoding: {0}",
+                            string.IsNullOrEmpty(encoding.HeaderName) ? encoding.EncodingName : encoding.HeaderName)
+                        );
+                        bool convertSuccess = false;
+
+                        if (returnType == RestReturnType.Json)
+                        {
+                            convertSuccess = TryConvertToJson(str, out obj, ref ex) || TryConvertToXml(str, out obj, ref ex);
+                        }
+                        // default to try xml first since it's more common
+                        else
+                        {
+                            convertSuccess = TryConvertToXml(str, out obj, ref ex) || TryConvertToJson(str, out obj, ref ex);
+                        }
+
+                        if (!convertSuccess)
+                        {
+                            // fallback to string
+                            obj = str;
+                        }
+
+                        WriteObject(obj);
+                    }
+                }
+
+                if (ShouldSaveToOutFile)
+                {
+                    StreamHelper.SaveStreamToFile(responseStream, QualifiedOutFile, this);
+                }
+
+                if (!String.IsNullOrEmpty(ResponseHeadersVariable))
+                {
+                    PSVariableIntrinsics vi = SessionState.PSVariable;
+                    vi.Set(ResponseHeadersVariable, WebResponseHelper.GetHeadersDictionary(response));
+                }
+            }
+        }
+
+        #endregion Virtual Method Overrides
+
+        #region Helper Methods
+
+        private RestReturnType CheckReturnType(HttpResponseMessage response)
+        {
+            if (null == response) { throw new ArgumentNullException("response"); }
+
+            RestReturnType rt = RestReturnType.Detect;
+            string contentType = ContentHelper.GetContentType(response);
+            if (string.IsNullOrEmpty(contentType))
+            {
+                rt = RestReturnType.Detect;
+            }
+            else if (ContentHelper.IsJson(contentType))
+            {
+                rt = RestReturnType.Json;
+            }
+            else if (ContentHelper.IsXml(contentType))
+            {
+                rt = RestReturnType.Xml;
+            }
+
+            return (rt);
+        }
+
+        #endregion Helper Methods
     }
 }

@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Management.Automation;
@@ -9,9 +9,9 @@ namespace Microsoft.PowerShell.Commands
     #region WriteOutputCommand
     /// <summary>
     /// This class implements Write-output command
-    /// 
+    ///
     /// </summary>
-    [Cmdlet("Write", "Output", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113427", RemotingCapability = RemotingCapability.None)]
+    [Cmdlet(VerbsCommunications.Write, "Output", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113427", RemotingCapability = RemotingCapability.None)]
     public sealed class WriteOutputCommand : PSCmdlet
     {
         private PSObject[] _inputObjects = null;
@@ -55,10 +55,8 @@ namespace Microsoft.PowerShell.Commands
             {
                 enumerate = false;
             }
-            foreach (PSObject inputObject in _inputObjects) // compensate for ValueFromRemainingArguments
-            {
-                WriteObject(inputObject, enumerate);
-            }
+
+            WriteObject(_inputObjects, enumerate);
         }//processrecord
     }//WriteOutputCommand
     #endregion

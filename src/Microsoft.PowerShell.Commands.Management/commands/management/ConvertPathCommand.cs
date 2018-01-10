@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.ObjectModel;
@@ -9,11 +9,11 @@ using Dbg = System.Management.Automation;
 namespace Microsoft.PowerShell.Commands
 {
     /// <summary>
-    /// A command to convert a drive qualifed or provider qualified path to 
+    /// A command to convert a drive qualified or provider qualified path to
     /// a provider internal path.
     /// </summary>
     [Cmdlet(VerbsData.Convert, "Path", DefaultParameterSetName = "Path", SupportsTransactions = true,
-        HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113289", RemotingCapability = RemotingCapability.None)]
+        HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113289", RemotingCapability = RemotingCapability.None)]
     [OutputType(typeof(string))]
     public class ConvertPathCommand : CoreCommandBase
     {

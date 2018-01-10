@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections;
@@ -74,7 +74,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Move to the Next value in the enumerator. 
+        /// Move to the Next value in the enumerator.
         /// </summary>
         /// <returns></returns>
         public bool MoveNext()
@@ -186,7 +186,7 @@ namespace System.Management.Automation
                             _matchingResourceList.Add(resourceInfo);
 
                             matchFound = true;
-                        } //if 
+                        } //if
                     }//if
                 }// foreach
 

@@ -4,7 +4,7 @@
  *
  * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Apache License, Version 2.0, please send an email to 
+ * you cannot locate the Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
  * by the terms of the Apache License, Version 2.0.
  *
@@ -232,7 +232,7 @@ namespace System.Management.Automation.Interpreter
     /// the goto expression and the target label node pushed and not consumed yet. 
     /// A goto expression can jump into a node that evaluates arguments only if it carries 
     /// a value and jumps right after the first argument (the carried value will be used as the first argument). 
-    /// Goto can jump into an arbitrary child of a BlockExpression since the block doesn�t accumulate values 
+    /// Goto can jump into an arbitrary child of a BlockExpression since the block doesn't accumulate values 
     /// on evaluation stack as its child expressions are being evaluated.
     /// 
     /// Goto needs to execute any finally blocks on the way to the target label.
@@ -361,7 +361,7 @@ namespace System.Management.Automation.Interpreter
                 if (index == _tryHandler.GotoEndTargetIndex)
                 {
                     // run the 'Goto' that jumps out of the try/catch/finally blocks
-                    Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumpes out the try/catch/finally");
+                    Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumps out the try/catch/finally");
                     frame.InstructionIndex += instructions[index].Run(frame);
                 }
             }
@@ -376,7 +376,7 @@ namespace System.Management.Automation.Interpreter
                 // rethrow if there is no catch blocks defined for this try block
                 if (!_tryHandler.IsCatchBlockExist) { throw; }
 
-                // Search for the best handler in the TryCatchFianlly block. If no suitable handler is found, rethrow
+                // Search for the best handler in the TryCatchFinally block. If no suitable handler is found, rethrow
                 ExceptionHandler exHandler;
                 frame.InstructionIndex += _tryHandler.GotoHandler(frame, exception, out exHandler);
                 if (exHandler == null) { throw; }
@@ -404,7 +404,7 @@ namespace System.Management.Automation.Interpreter
                     if (index == _tryHandler.GotoEndTargetIndex)
                     {
                         // run the 'Goto' that jumps out of the try/catch/finally blocks
-                        Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumpes out the try/catch/finally");
+                        Debug.Assert(instructions[index] is GotoInstruction, "should be the 'Goto' instruction that jumps out the try/catch/finally");
                         frame.InstructionIndex += instructions[index].Run(frame);
                     }
                 }
@@ -429,7 +429,7 @@ namespace System.Management.Automation.Interpreter
                     // In the second path, the continuation mechanism is not involved and frame.InstructionIndex is not updated
 #if DEBUG
                     bool isFromJump = frame.IsJumpHappened();
-                    Debug.Assert(!isFromJump || (isFromJump && _tryHandler.FinallyStartIndex == frame.InstructionIndex), "we should already jump to the first instruction of the finally");
+                    Debug.Assert(!isFromJump || _tryHandler.FinallyStartIndex == frame.InstructionIndex, "we should already jump to the first instruction of the finally");
 #endif
                     // run the finally block
                     // we cannot jump out of the finally block, and we cannot have an immediate rethrow in it
@@ -484,7 +484,7 @@ namespace System.Management.Automation.Interpreter
         {
             // If _pendingContinuation == -1 then we were getting into the finally block because an exception was thrown
             //      in this case we need to set the stack depth
-            // Else we were getting into this finnaly block from a 'Goto' jump, and the stack depth is alreayd set properly
+            // Else we were getting into this finally block from a 'Goto' jump, and the stack depth is already set properly
             if (!frame.IsJumpHappened())
             {
                 frame.SetStackDepth(GetLabel(frame).StackDepth);

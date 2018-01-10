@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -16,14 +16,14 @@ namespace Microsoft.PowerShell.Commands
     /// <summary>
     /// implementation for the Send-MailMessage command
     /// </summary>
-    [Cmdlet(VerbsCommunications.Send, "MailMessage", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=135256")]
+    [Cmdlet(VerbsCommunications.Send, "MailMessage", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=135256")]
     public sealed class SendMailMessage : PSCmdlet
     {
         #region Command Line Parameters
 
         /// <summary>
         /// Specifies the files names to be attached to the email.
-        /// If the filename specified can not be found, then the relevant error  
+        /// If the filename specified can not be found, then the relevant error
         /// message should be thrown.
         /// </summary>
         [Parameter(ValueFromPipeline = true)]
@@ -41,7 +41,7 @@ namespace Microsoft.PowerShell.Commands
         private String[] _attachments;
 
         /// <summary>
-        /// Specifies the address collection that contains the 
+        /// Specifies the address collection that contains the
         /// blind carbon copy (BCC) recipients for the e-mail message.
         /// </summary>
         [Parameter]
@@ -88,24 +88,28 @@ namespace Microsoft.PowerShell.Commands
         private SwitchParameter _bodyashtml;
 
         /// <summary>
-        /// Specifies the encoding used for the content of the body and also the subject. 
+        /// Specifies the encoding used for the content of the body and also the subject.
+        /// This is set to ASCII to ensure there are no problems with any email server
         /// </summary>
         [Parameter()]
         [Alias("BE")]
         [ValidateNotNullOrEmpty]
-        [ArgumentToEncodingNameTransformationAttribute()]
-        public Encoding Encoding
-        {
-            get { return _encoding; }
-            set
-            {
-                _encoding = value;
-            }
-        }
-        private Encoding _encoding = new ASCIIEncoding();
+        [ArgumentCompletions(
+            EncodingConversion.Ascii,
+            EncodingConversion.BigEndianUnicode,
+            EncodingConversion.OEM,
+            EncodingConversion.Unicode,
+            EncodingConversion.Utf7,
+            EncodingConversion.Utf8,
+            EncodingConversion.Utf8Bom,
+            EncodingConversion.Utf8NoBom,
+            EncodingConversion.Utf32
+            )]
+        [ArgumentToEncodingTransformationAttribute()]
+        public Encoding Encoding { get; set; } = Encoding.ASCII;
 
         /// <summary>
-        /// Specifies the address collection that contains the 
+        /// Specifies the address collection that contains the
         /// carbon copy (CC) recipients for the e-mail message.
         /// </summary>
         [Parameter]
@@ -123,8 +127,8 @@ namespace Microsoft.PowerShell.Commands
         private String[] _cc;
 
         /// <summary>
-        /// Specifies the delivery notifications options for the e-mail message. The various 
-        /// option available for this parameter are None, OnSuccess, OnFailure, Delay and  Never 
+        /// Specifies the delivery notifications options for the e-mail message. The various
+        /// option available for this parameter are None, OnSuccess, OnFailure, Delay and Never
         /// </summary>
         [Parameter()]
         [Alias("DNO")]
@@ -140,8 +144,8 @@ namespace Microsoft.PowerShell.Commands
         private DeliveryNotificationOptions _deliverynotification;
 
         /// <summary>
-        /// Specifies the from address for this e-mail message. The default value for 
-        /// this parameter is the email address of the currently logged on user 
+        /// Specifies the from address for this e-mail message. The default value for
+        /// this parameter is the email address of the currently logged on user
         /// </summary>
         [Parameter(Mandatory = true)]
         [ValidateNotNullOrEmpty]
@@ -156,8 +160,8 @@ namespace Microsoft.PowerShell.Commands
         private String _from;
 
         /// <summary>
-        /// Specifies the name of the Host used to send the email. This host name will be assigned  
-        /// to the Powershell variable PSEmailServer,if this host can not reached an appropriate error 
+        /// Specifies the name of the Host used to send the email. This host name will be assigned
+        /// to the Powershell variable PSEmailServer,if this host can not reached an appropriate error
         /// message will be displayed.
         /// </summary>
         [Parameter(Position = 3)]
@@ -189,7 +193,7 @@ namespace Microsoft.PowerShell.Commands
         private MailPriority _priority;
 
         /// <summary>
-        /// Specifies the  subject of the email message.
+        /// Specifies the subject of the email message.
         /// </summary>
         [Parameter(Mandatory = true, Position = 1)]
         [Alias("sub")]
@@ -332,7 +336,7 @@ namespace Microsoft.PowerShell.Commands
         {
             try
             {
-                // Set the sender address of the mail message                                  
+                // Set the sender address of the mail message
                 _mMailMessage.From = new MailAddress(_from);
             }
             catch (FormatException e)
@@ -342,10 +346,10 @@ namespace Microsoft.PowerShell.Commands
                 // return;
             }
 
-            // Set the recepient address of the mail message 
+            // Set the recipient address of the mail message
             AddAddressesToMailMessage(_to, "to");
 
-            // Set the BCC address of the mail message 
+            // Set the BCC address of the mail message
             if (_bcc != null)
             {
                 AddAddressesToMailMessage(_bcc, "bcc");
@@ -369,8 +373,8 @@ namespace Microsoft.PowerShell.Commands
             _mMailMessage.Body = _body;
 
             //set the subject and body encoding
-            _mMailMessage.SubjectEncoding = _encoding;
-            _mMailMessage.BodyEncoding = _encoding;
+            _mMailMessage.SubjectEncoding = Encoding;
+            _mMailMessage.BodyEncoding = Encoding;
 
             // Set the format of the mail message body as HTML
             _mMailMessage.IsBodyHtml = _bodyashtml;
@@ -423,7 +427,7 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         protected override void ProcessRecord()
         {
-            //add the attachments 
+            //add the attachments
             if (_attachments != null)
             {
                 string filepath = string.Empty;
@@ -488,38 +492,6 @@ namespace Microsoft.PowerShell.Commands
         }
 
         #endregion
-    }
-
-    /// <summary>
-    /// To make it easier to specify -Encoding parameter, we add an ArgumentTransformationAttribute here.
-    /// When the input data is of type string and is valid to be converted to System.Text.Encoding, we do 
-    /// the conversion and return the converted value. Otherwise, we just return the input data.
-    /// </summary>
-    internal sealed class ArgumentToEncodingNameTransformationAttribute : ArgumentTransformationAttribute
-    {
-        public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
-        {
-            string encodingName;
-            if (LanguagePrimitives.TryConvertTo<string>(inputData, out encodingName))
-            {
-                if (string.Equals(encodingName, EncodingConversion.Unknown, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.String, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.Unicode, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.BigEndianUnicode, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.Utf8, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.Utf7, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.Utf32, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.Ascii, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.Default, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(encodingName, EncodingConversion.OEM, StringComparison.OrdinalIgnoreCase))
-                {
-                    // the encodingName is guaranteed to be valid, so it is safe to pass null to method 
-                    // Convert(Cmdlet cmdlet, string encoding) as the value of 'cmdlet'.
-                    return EncodingConversion.Convert(null, encodingName);
-                }
-            }
-            return inputData;
-        }
     }
 
     #endregion

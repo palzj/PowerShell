@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Diagnostics.CodeAnalysis;
@@ -29,7 +29,7 @@ namespace System.Management.Automation.Language
     }
 
     /// <summary>
-    /// AstVisitor is used for basic scenarios requiring traveral of the nodes in an Ast.
+    /// AstVisitor is used for basic scenarios requiring traversal of the nodes in an Ast.
     /// An implementation of AstVisitor does not explicitly traverse the Ast, instead,
     /// the engine traverses all nodes in the Ast and calls the appropriate method on each node.
     /// </summary>

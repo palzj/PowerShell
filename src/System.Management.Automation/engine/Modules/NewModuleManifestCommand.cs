@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -16,13 +16,6 @@ using System.Management.Automation.Internal;
 using System.Diagnostics.CodeAnalysis;
 using Dbg = System.Management.Automation.Diagnostics;
 
-#if CORECLR
-// Some APIs are missing from System.Environment. We use System.Management.Automation.Environment as a proxy type:
-//  - for missing APIs, System.Management.Automation.Environment has extension implementation.
-//  - for existing APIs, System.Management.Automation.Environment redirect the call to System.Environment.
-using Environment = System.Management.Automation.Environment;
-#endif
-
 //
 // Now define the set of commands for manipulating modules.
 //
@@ -32,7 +25,7 @@ namespace Microsoft.PowerShell.Commands
     /// <summary>
     /// Cmdlet to create a new module manifest file.
     /// </summary>
-    [Cmdlet(VerbsCommon.New, "ModuleManifest", SupportsShouldProcess = true, HelpUri = "http://go.microsoft.com/fwlink/?LinkID=141555")]
+    [Cmdlet(VerbsCommon.New, "ModuleManifest", SupportsShouldProcess = true, HelpUri = "https://go.microsoft.com/fwlink/?LinkID=141555")]
     [OutputType(typeof(string))]
     public sealed class NewModuleManifestCommand : PSCmdlet
     {
@@ -130,7 +123,7 @@ namespace Microsoft.PowerShell.Commands
             get { return _moduleVersion; }
             set { _moduleVersion = value; }
         }
-        private Version _moduleVersion = new Version(1, 0);
+        private Version _moduleVersion = new Version(0, 0, 1);
 
         /// <summary>
         /// Set the module description
@@ -295,7 +288,7 @@ namespace Microsoft.PowerShell.Commands
         private string[] _miscFiles;
 
         /// <summary>
-        /// List of other modules included with this module. 
+        /// List of other modules included with this module.
         /// Like the RequiredModules key, this list can be a simple list of module names or a complex list of module hashtables.
         /// </summary>
         [Parameter]
@@ -469,7 +462,7 @@ namespace Microsoft.PowerShell.Commands
         private bool _passThru;
 
         /// <summary>
-        /// Specify the Default Command Prefix 
+        /// Specify the Default Command Prefix
         /// </summary>
         [Parameter]
         [AllowNull]
@@ -487,11 +480,35 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         /// <param name="name">The string to quote</param>
         /// <returns>The quoted string</returns>
-        private string QuoteName(object name)
+        private string QuoteName(string name)
         {
             if (name == null)
                 return "''";
-            return "'" + name.ToString().Replace("'", "''") + "'";
+            return ("'" + name.ToString().Replace("'", "''") + "'");
+        }
+
+        /// <summary>
+        /// Return a single-quoted string using the AbsoluteUri member to ensure it is escaped correctly
+        /// </summary>
+        /// <param name="name">The Uri to quote</param>
+        /// <returns>The quoted AbsoluteUri</returns>
+        private string QuoteName(Uri name)
+        {
+            if (name == null)
+                return "''";
+            return QuoteName(name.AbsoluteUri);
+        }
+
+        /// <summary>
+        /// Return a single-quoted string from a Version object
+        /// </summary>
+        /// <param name="name">The Version object to quote</param>
+        /// <returns>The quoted Version string</returns>
+        private string QuoteName(Version name)
+        {
+            if (name == null)
+                return "''";
+            return QuoteName(name.ToString());
         }
 
         /// <summary>
@@ -683,7 +700,7 @@ namespace Microsoft.PowerShell.Commands
         ///// <summary>
         ///// Takes a collection of file names and returns the collection
         ///// quoted.  It does not expand wildcard to actual files (as QuoteFiles does).
-        ///// It throws an error when the entered filename is different than the alllowedExtension.
+        ///// It throws an error when the entered filename is different than the allowedExtension.
         ///// If any file name falls outside the directory tree basPath a warning is issued.
         ///// </summary>
         ///// <param name="basePath">This is the path which will be used to determine whether a warning is to be displayed.</param>
@@ -833,12 +850,12 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// Generate the module manfest...
+        /// Generate the module manifest...
         /// </summary>
         protected override void EndProcessing()
         {
-            // Win8: 264471 - Error message for New-ModuleManifest –ProcessorArchitecture is obsolete.
-            // If an undefined value is passed for the ProcessorArchitecture parameter, the error message from parameter binder includes all the values from the enum. 
+            // Win8: 264471 - Error message for New-ModuleManifest -ProcessorArchitecture is obsolete.
+            // If an undefined value is passed for the ProcessorArchitecture parameter, the error message from parameter binder includes all the values from the enum.
             // The value 'IA64' for ProcessorArchitecture is not supported. But since we do not own the enum System.Reflection.ProcessorArchitecture, we cannot control the values in it.
             // So, we add a separate check in our code to give an error if user specifies IA64
             if (ProcessorArchitecture == ProcessorArchitecture.IA64)
@@ -864,7 +881,7 @@ namespace Microsoft.PowerShell.Commands
             }
 
             // By default, we want to generate a module manifest the encourages the best practice of explicitly specifying
-            // the commands exported (even if it's an empty array.) Unforunately, changing the default breaks automation
+            // the commands exported (even if it's an empty array.) Unfortunately, changing the default breaks automation
             // (however unlikely, this cmdlet isn't really meant for automation). Instead of trying to detect interactive
             // use (which is quite hard), we infer interactive use if none of RootModule/NestedModules/RequiredModules is
             // specified - because the manifest needs to be edited to actually be of use in those cases.
@@ -881,9 +898,13 @@ namespace Microsoft.PowerShell.Commands
                     _exportedCmdlets = new string[] { "*" };
             }
 
-            ValidateUriParamterValue(ProjectUri, "ProjectUri");
-            ValidateUriParamterValue(LicenseUri, "LicenseUri");
-            ValidateUriParamterValue(IconUri, "IconUri");
+            ValidateUriParameterValue(ProjectUri, "ProjectUri");
+            ValidateUriParameterValue(LicenseUri, "LicenseUri");
+            ValidateUriParameterValue(IconUri, "IconUri");
+            if (_helpInfoUri != null)
+            {
+                ValidateUriParameterValue(new Uri(_helpInfoUri), "HelpInfoUri");
+            }
 
             if (CompatiblePSEditions != null && (CompatiblePSEditions.Distinct(StringComparer.OrdinalIgnoreCase).Count() != CompatiblePSEditions.Count()))
             {
@@ -909,7 +930,7 @@ namespace Microsoft.PowerShell.Commands
 
                 if (string.IsNullOrEmpty(_copyright))
                 {
-                    _copyright = StringUtil.Format(Modules.DefaultCopyrightMessage, DateTime.Now.Year, _author);
+                    _copyright = StringUtil.Format(Modules.DefaultCopyrightMessage, _author);
                 }
 
                 FileStream fileStream;
@@ -920,7 +941,11 @@ namespace Microsoft.PowerShell.Commands
                 PathUtils.MasterStreamOpen(
                     this,
                     filePath,
-                    EncodingConversion.Unicode,
+#if UNIX
+                    new UTF8Encoding(false), // UTF-8, no BOM
+#else
+                    EncodingConversion.Unicode, // UTF-16 with BOM
+#endif
                     /* defaultEncoding */ false,
                     /* Append */ false,
                     /* Force */ false,
@@ -956,7 +981,7 @@ namespace Microsoft.PowerShell.Commands
 
                     BuildModuleManifest(result, "RootModule", Modules.RootModule, !string.IsNullOrEmpty(_rootModule), () => QuoteName(_rootModule), streamWriter);
 
-                    BuildModuleManifest(result, "ModuleVersion", Modules.ModuleVersion, _moduleVersion != null && !string.IsNullOrEmpty(_moduleVersion.ToString()), () => QuoteName(_moduleVersion.ToString()), streamWriter);
+                    BuildModuleManifest(result, "ModuleVersion", Modules.ModuleVersion, _moduleVersion != null && !string.IsNullOrEmpty(_moduleVersion.ToString()), () => QuoteName(_moduleVersion), streamWriter);
 
                     BuildModuleManifest(result, "CompatiblePSEditions", Modules.CompatiblePSEditions, _compatiblePSEditions != null && _compatiblePSEditions.Length > 0, () => QuoteNames(_compatiblePSEditions, streamWriter), streamWriter);
 
@@ -980,7 +1005,7 @@ namespace Microsoft.PowerShell.Commands
 
                     BuildModuleManifest(result, "CLRVersion", StringUtil.Format(Modules.CLRVersion, Modules.PrerequisiteForDesktopEditionOnly), _ClrVersion != null && !string.IsNullOrEmpty(_ClrVersion.ToString()), () => QuoteName(_ClrVersion), streamWriter);
 
-                    BuildModuleManifest(result, "ProcessorArchitecture", Modules.ProcessorArchitecture, _processorArchitecture.HasValue, () => QuoteName(_processorArchitecture), streamWriter);
+                    BuildModuleManifest(result, "ProcessorArchitecture", Modules.ProcessorArchitecture, _processorArchitecture.HasValue, () => QuoteName(_processorArchitecture.ToString()), streamWriter);
 
                     BuildModuleManifest(result, "RequiredModules", Modules.RequiredModules, _requiredModules != null && _requiredModules.Length > 0, () => QuoteModules(_requiredModules, streamWriter), streamWriter);
 
@@ -1010,7 +1035,7 @@ namespace Microsoft.PowerShell.Commands
 
                     BuildPrivateDataInModuleManifest(result, streamWriter);
 
-                    BuildModuleManifest(result, "HelpInfoURI", Modules.HelpInfoURI, !string.IsNullOrEmpty(_helpInfoUri), () => QuoteName(_helpInfoUri), streamWriter);
+                    BuildModuleManifest(result, "HelpInfoURI", Modules.HelpInfoURI, !string.IsNullOrEmpty(_helpInfoUri), () => QuoteName((_helpInfoUri != null) ? new Uri(_helpInfoUri) : null), streamWriter);
 
                     BuildModuleManifest(result, "DefaultCommandPrefix", Modules.DefaultCommandPrefix, !string.IsNullOrEmpty(_defaultCommandPrefix), () => QuoteName(_defaultCommandPrefix), streamWriter);
 
@@ -1061,9 +1086,9 @@ namespace Microsoft.PowerShell.Commands
         // # ReleaseNotes of this module
         // ReleaseNotes = ''
         // }# end of PSData hashtable
-        // 
+        //
         // # User's private data keys
-        // 
+        //
         // }# end of PrivateData hashtable
         // #>
         private void BuildPrivateDataInModuleManifest(StringBuilder result, StreamWriter streamWriter)
@@ -1131,11 +1156,11 @@ namespace Microsoft.PowerShell.Commands
             }
         }
 
-        private void ValidateUriParamterValue(Uri uri, string parameterName)
+        private void ValidateUriParameterValue(Uri uri, string parameterName)
         {
             Dbg.Assert(!String.IsNullOrWhiteSpace(parameterName), "parameterName should not be null or whitespace");
 
-            if (uri != null && !Uri.IsWellFormedUriString(uri.ToString(), UriKind.Absolute))
+            if (uri != null && !Uri.IsWellFormedUriString(uri.AbsoluteUri, UriKind.Absolute))
             {
                 var message = StringUtil.Format(Modules.InvalidParameterValue, uri);
                 var ioe = new InvalidOperationException(message);
@@ -1146,5 +1171,5 @@ namespace Microsoft.PowerShell.Commands
         }
     }
 
-    #endregion
+#endregion
 } // Microsoft.PowerShell.Commands

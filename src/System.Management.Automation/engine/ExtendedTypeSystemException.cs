@@ -1,16 +1,10 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Runtime.Serialization;
 using System.Management.Automation.Internal;
-
-#if !CORECLR
 using System.Security.Permissions;
-#else
-// Use stubs for ISerializable related types
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
 
 namespace System.Management.Automation
 {
@@ -22,7 +16,7 @@ namespace System.Management.Automation
     {
         #region ctor
         /// <summary>
-        /// Initializes a new instance of ExtendedTypeSystemException with the message set 
+        /// Initializes a new instance of ExtendedTypeSystemException with the message set
         /// to typeof(ExtendedTypeSystemException).FullName
         /// </summary>
         public ExtendedTypeSystemException() : base(typeof(ExtendedTypeSystemException).FullName)
@@ -92,7 +86,7 @@ namespace System.Management.Automation
 
         #region ctor
         /// <summary>
-        /// Initializes a new instance of MethodException with the message set 
+        /// Initializes a new instance of MethodException with the message set
         /// to typeof(MethodException).FullName
         /// </summary>
         public MethodException() : base(typeof(MethodException).FullName)
@@ -158,7 +152,7 @@ namespace System.Management.Automation
 
         #region ctor
         /// <summary>
-        /// Initializes a new instance of MethodInvocationException with the message set 
+        /// Initializes a new instance of MethodInvocationException with the message set
         /// to typeof(MethodInvocationException).FullName
         /// </summary>
         public MethodInvocationException() : base(typeof(MethodInvocationException).FullName)
@@ -222,7 +216,7 @@ namespace System.Management.Automation
         internal const string WriteOnlyProperty = "WriteOnlyProperty";
         #region ctor
         /// <summary>
-        /// Initializes a new instance of GetValueException with the message set 
+        /// Initializes a new instance of GetValueException with the message set
         /// to typeof(GetValueException).FullName
         /// </summary>
         public GetValueException() : base(typeof(GetValueException).FullName)
@@ -285,7 +279,7 @@ namespace System.Management.Automation
     {
         #region ctor
         /// <summary>
-        /// Initializes a new instance of GetValueException with the message set 
+        /// Initializes a new instance of GetValueException with the message set
         /// to typeof(GetValueException).FullName
         /// </summary>
         public PropertyNotFoundException()
@@ -352,7 +346,7 @@ namespace System.Management.Automation
 
         #region ctor
         /// <summary>
-        /// Initializes a new instance of GetValueInvocationException with the message set 
+        /// Initializes a new instance of GetValueInvocationException with the message set
         /// to typeof(GetValueInvocationException).FullName
         /// </summary>
         public GetValueInvocationException() : base(typeof(GetValueInvocationException).FullName)
@@ -414,7 +408,7 @@ namespace System.Management.Automation
     {
         #region ctor
         /// <summary>
-        /// Initializes a new instance of SetValueException with the message set 
+        /// Initializes a new instance of SetValueException with the message set
         /// to typeof(SetValueException).FullName
         /// </summary>
         public SetValueException() : base(typeof(SetValueException).FullName)
@@ -476,7 +470,7 @@ namespace System.Management.Automation
     {
         #region ctor
         /// <summary>
-        /// Initializes a new instance of SetValueInvocationException with the message set 
+        /// Initializes a new instance of SetValueInvocationException with the message set
         /// to typeof(SetValueInvocationException).FullName
         /// </summary>
         public SetValueInvocationException() : base(typeof(SetValueInvocationException).FullName)
@@ -537,7 +531,7 @@ namespace System.Management.Automation
     public class PSInvalidCastException : InvalidCastException, IContainsErrorRecord
     {
         #region Serialization
-#if !CORECLR // InvalidCastException Has No Serialization In CoreCLR
+
         /// <summary>
         /// Populates a <see cref="System.Runtime.Serialization.SerializationInfo"/> with the
         /// data needed to serialize the PSInvalidCastException object.
@@ -564,11 +558,11 @@ namespace System.Management.Automation
         {
             _errorId = info.GetString("ErrorId");
         }
-#endif
+
         #endregion Serialization
 
         /// <summary>
-        /// Initializes a new instance of PSInvalidCastException with the message set 
+        /// Initializes a new instance of PSInvalidCastException with the message set
         /// to typeof(PSInvalidCastException).FullName
         /// </summary>
         public PSInvalidCastException() : base(typeof(PSInvalidCastException).FullName)

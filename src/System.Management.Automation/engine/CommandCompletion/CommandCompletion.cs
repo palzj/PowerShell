@@ -1,6 +1,6 @@
 
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.ObjectModel;
@@ -12,7 +12,9 @@ using System.Globalization;
 using System.Management.Automation.Language;
 using System.Management.Automation.Runspaces;
 using System.Text.RegularExpressions;
+#if LEGACYTELEMETRY
 using Microsoft.PowerShell.Telemetry.Internal;
+#endif
 
 namespace System.Management.Automation
 {
@@ -64,7 +66,7 @@ namespace System.Management.Automation
         #region public methods
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="input"></param>
         /// <param name="cursorIndex"></param>
@@ -86,7 +88,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="input">The input to complete</param>
         /// <param name="cursorIndex">The index of the cursor in the input</param>
@@ -104,7 +106,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="ast">Ast for pre-parsed input</param>
         /// <param name="tokens">Tokens for pre-parsed input</param>
@@ -168,7 +170,7 @@ namespace System.Management.Automation
             var remoteRunspace = powershell.Runspace as RemoteRunspace;
             if (remoteRunspace != null)
             {
-                // If the runspace is not available to run commands then exit here because nested commands are not 
+                // If the runspace is not available to run commands then exit here because nested commands are not
                 // supported on remote runspaces.
                 if (powershell.IsNested || (remoteRunspace.RunspaceAvailability != RunspaceAvailability.Available))
                 {
@@ -247,7 +249,7 @@ namespace System.Management.Automation
             var remoteRunspace = powershell.Runspace as RemoteRunspace;
             if (remoteRunspace != null)
             {
-                // If the runspace is not available to run commands then exit here because nested commands are not 
+                // If the runspace is not available to run commands then exit here because nested commands are not
                 // supported on remote runspaces.
                 if (powershell.IsNested || (remoteRunspace.RunspaceAvailability != RunspaceAvailability.Available))
                 {
@@ -467,9 +469,8 @@ namespace System.Management.Automation
                     }
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                CommandProcessorBase.CheckForSevereException(e);
             }
             finally
             {
@@ -505,9 +506,8 @@ namespace System.Management.Automation
                     }
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                CommandProcessorBase.CheckForSevereException(e);
             }
             finally
             {
@@ -593,8 +593,10 @@ namespace System.Management.Automation
 
                     var completionResults = results ?? EmptyCompletionResult;
                     sw.Stop();
+#if LEGACYTELEMETRY
                     TelemetryAPI.ReportTabCompletionTelemetry(sw.ElapsedMilliseconds, completionResults.Count,
                         completionResults.Count > 0 ? completionResults[0].ResultType : CompletionResultType.Text);
+#endif
                     return new CommandCompletion(
                         new Collection<CompletionResult>(completionResults),
                         -1,
@@ -643,7 +645,7 @@ namespace System.Management.Automation
             char quote;
             var lastword = LastWordFinder.FindLastWord(legacyInput, out replacementIndex, out quote);
             replacementLength = legacyInput.Length - replacementIndex;
-            var helper = new CompletionExecutionHelper(powershell);
+            var helper = new PowerShellExecutionHelper(powershell);
 
             powershell.AddCommand("TabExpansion").AddArgument(legacyInput).AddArgument(lastword);
 
@@ -690,13 +692,13 @@ namespace System.Management.Automation
 
         /// <summary>
         /// PSv2CompletionCompleter implements the algorithm we use to complete cmdlet/file names in PowerShell v2. This class
-        /// exists for legacy purpose only. It is used only in a remote interactive session from Win8 to Win7. V3 and forward 
+        /// exists for legacy purpose only. It is used only in a remote interactive session from Win8 to Win7. V3 and forward
         /// uses completely different completers.
         /// </summary>
-        /// 
+        ///
         /// <remarks>
         /// The implementation of file name completion is completely different on V2 and V3 for remote scenarios. On PSv3, the
-        /// CompletionResults are generated always on the target machine, and 
+        /// CompletionResults are generated always on the target machine, and
         /// </remarks>
         private static class PSv2CompletionCompleter
         {
@@ -751,7 +753,7 @@ namespace System.Management.Automation
             /// <param name="quote"></param>
             /// <param name="completingAtStartOfLine"></param>
             /// <returns></returns>
-            internal static List<CompletionResult> PSv2GenerateMatchSetOfCmdlets(CompletionExecutionHelper helper, string lastWord, string quote, bool completingAtStartOfLine)
+            internal static List<CompletionResult> PSv2GenerateMatchSetOfCmdlets(PowerShellExecutionHelper helper, string lastWord, string quote, bool completingAtStartOfLine)
             {
                 var results = new List<CompletionResult>();
                 bool isSnapinSpecified;
@@ -866,7 +868,7 @@ namespace System.Management.Automation
 
             #region "Handle File Names"
 
-            internal static List<CompletionResult> PSv2GenerateMatchSetOfFiles(CompletionExecutionHelper helper, string lastWord, bool completingAtStartOfLine, string quote)
+            internal static List<CompletionResult> PSv2GenerateMatchSetOfFiles(PowerShellExecutionHelper helper, string lastWord, bool completingAtStartOfLine, string quote)
             {
                 var results = new List<CompletionResult>();
 
@@ -891,7 +893,7 @@ namespace System.Management.Automation
 
                 // NTRAID#Windows Out Of Band Releases-927933-2006/03/13-JeffJon
                 // Need to detect when the path is a provider-direct path and make sure
-                // to remove the provider-qualifer when the resolved path is returned.
+                // to remove the provider-qualifier when the resolved path is returned.
                 bool isProviderDirectPath = lastWord.StartsWith(@"\\", StringComparison.Ordinal) ||
                                             lastWord.StartsWith("//", StringComparison.Ordinal);
 
@@ -928,7 +930,7 @@ namespace System.Management.Automation
 
                         bool? isContainer = SafeGetProperty<bool?>(combinedMatch.Item, "PSIsContainer");
                         string childName = SafeGetProperty<string>(combinedMatch.Item, "PSChildName");
-                        string toolTip = CompletionExecutionHelper.SafeToString(combinedMatch.ConvertedPath);
+                        string toolTip = PowerShellExecutionHelper.SafeToString(combinedMatch.ConvertedPath);
 
                         if (isContainer != null && childName != null && toolTip != null)
                         {
@@ -1036,7 +1038,7 @@ namespace System.Management.Automation
                 return default(T);
             }
 
-            private static bool PSv2ShouldFullyQualifyPathsPath(CompletionExecutionHelper helper, string lastWord)
+            private static bool PSv2ShouldFullyQualifyPathsPath(PowerShellExecutionHelper helper, string lastWord)
             {
                 // These are special cases, as they represent cases where the user expects to
                 // see the full path.
@@ -1070,7 +1072,7 @@ namespace System.Management.Automation
                 }
             }
 
-            private static List<PathItemAndConvertedPath> PSv2FindMatches(CompletionExecutionHelper helper, string path, bool shouldFullyQualifyPaths)
+            private static List<PathItemAndConvertedPath> PSv2FindMatches(PowerShellExecutionHelper helper, string path, bool shouldFullyQualifyPaths)
             {
                 Diagnostics.Assert(!String.IsNullOrEmpty(path), "path should have a value");
                 var result = new List<PathItemAndConvertedPath>();
@@ -1083,14 +1085,14 @@ namespace System.Management.Automation
                 {
                     powershell.AddScript(String.Format(
                         CultureInfo.InvariantCulture,
-                        "& {{ trap {{ continue }} ; resolve-path {0} -Relative -WarningAction SilentlyContinue | %{{,($_,(get-item $_ -WarningAction SilentlyContinue),(convert-path $_ -WarningAction SilentlyContinue))}} }}",
+                        "& {{ trap {{ continue }} ; resolve-path {0} -Relative -WarningAction SilentlyContinue | ForEach-Object {{,($_,(get-item $_ -WarningAction SilentlyContinue),(convert-path $_ -WarningAction SilentlyContinue))}} }}",
                         path));
                 }
                 else
                 {
                     powershell.AddScript(String.Format(
                         CultureInfo.InvariantCulture,
-                        "& {{ trap {{ continue }} ; resolve-path {0} -WarningAction SilentlyContinue | %{{,($_,(get-item $_ -WarningAction SilentlyContinue),(convert-path $_ -WarningAction SilentlyContinue))}} }}",
+                        "& {{ trap {{ continue }} ; resolve-path {0} -WarningAction SilentlyContinue | ForEach-Object {{,($_,(get-item $_ -WarningAction SilentlyContinue),(convert-path $_ -WarningAction SilentlyContinue))}} }}",
                         path));
                 }
 
@@ -1115,9 +1117,9 @@ namespace System.Management.Automation
                         }
 
                         result.Add(new PathItemAndConvertedPath(
-                                            CompletionExecutionHelper.SafeToString(objectPath),
+                                            PowerShellExecutionHelper.SafeToString(objectPath),
                                             item,
-                                            CompletionExecutionHelper.SafeToString(convertedPath)));
+                                            PowerShellExecutionHelper.SafeToString(convertedPath)));
                     }
                 }
 
@@ -1162,12 +1164,12 @@ namespace System.Management.Automation
             /// per LastWordFinder instance.
             /// </summary>
             /// <param name="replacementIndexOut">
-            /// Receives the character index (from the front of the string) of the starting point of the located word, or 0 if 
+            /// Receives the character index (from the front of the string) of the starting point of the located word, or 0 if
             /// the word starts at the beginning of the sentence.
             /// </param>
             /// <param name="closingQuote">
-            /// Receives the quote character that would be needed to end the sentence with a balanced pair of quotes.  For 
-            /// instance, if sentence is "foo then " is returned, if sentence if "foo" then nothing is resturned, if sentence is
+            /// Receives the quote character that would be needed to end the sentence with a balanced pair of quotes.  For
+            /// instance, if sentence is "foo then " is returned, if sentence if "foo" then nothing is returned, if sentence is
             /// 'foo then ' is returned, if sentence is 'foo' then nothing is returned.
             /// </param>
             /// <returns>The last word located, or the empty string if no word could be found.</returns>
@@ -1180,10 +1182,7 @@ namespace System.Management.Automation
 
                 for (_sentenceIndex = 0; _sentenceIndex < _sentence.Length; ++_sentenceIndex)
                 {
-                    Diagnostics.Assert(
-                        (inSingleQuote && !inDoubleQuote)
-                        || (inDoubleQuote && !inSingleQuote)
-                        || (!inSingleQuote && !inDoubleQuote),
+                    Diagnostics.Assert(!(inSingleQuote && inDoubleQuote),
                         "Can't be in both single and double quotes");
 
                     char c = _sentence[_sentenceIndex];

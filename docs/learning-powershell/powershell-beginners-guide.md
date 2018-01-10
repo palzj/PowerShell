@@ -189,7 +189,7 @@ PSVersion                      6.0.0-alpha
 PSEdition                      Core
 PSCompatibleVersions           {1.0, 2.0, 3.0, 4.0...}
 BuildVersion                   3.0.0.0
-GitCommitId                    v6.0.0-alpha.9
+GitCommitId                    v6.0.0-alpha.12
 CLRVersion                     
 WSManStackVersion              3.0
 PSRemotingProtocolVersion      2.3
@@ -268,16 +268,16 @@ For more details, see [Create and Run PowerShell Script Guide][create-run-script
 
 Recommended Training and Reading
 ----
--	Video: [Get Started with PowerShell][remoting] from Channel9
+- Video: [Get Started with PowerShell][remoting] from Channel9
 - [eBooks from PowerShell.org](https://powershell.org/ebooks/)
--	[eBooks from PowerShell.com][ebooks-powershell.com]
+- [eBooks from PowerShell.com][ebooks-powershell.com]
 - [eBooks List][ebook-list] by Martin Schvartzman
 - [Tutorial from MVP][tutorial]
--	Script Guy blog: [The best way to Learn PowerShell][to-learn]
--	[Understanding PowerShell Module][ps-module]
--	[How and When to Create PowerShell Module][create-ps-module] by Adam Bertram
+- Script Guy blog: [The best way to Learn PowerShell][to-learn]
+- [Understanding PowerShell Module][ps-module]
+- [How and When to Create PowerShell Module][create-ps-module] by Adam Bertram
 - Video: [PowerShell Remoting in Depth][in-depth] from Channel9
--	[PowerShell Basics: Remote Management][remote-mgmt] from ITPro
+- [PowerShell Basics: Remote Management][remote-mgmt] from ITPro
 - [Running Remote Commands][remote-commands] from PowerShell Web Docs
 - [Samples for PowerShell Scripts][examples]
 - [Samples for Writing a PowerShell Script Module][examples-ps-module]

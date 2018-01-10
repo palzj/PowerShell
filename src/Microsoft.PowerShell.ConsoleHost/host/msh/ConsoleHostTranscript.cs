@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 
@@ -55,7 +55,7 @@ namespace Microsoft.PowerShell
                 transcriptionWriter.AutoFlush = true;
 
                 string format = ConsoleHostStrings.TranscriptPrologue;
-                string line = 
+                string line =
                     StringUtil.Format(
                         format,
                         DateTime.Now,
@@ -133,6 +133,6 @@ namespace Microsoft.PowerShell
         private StreamWriter _transcriptionWriter;
         private object _transcriptionStateLock = new object();
     }
-}   // namespace 
+}   // namespace
 
 

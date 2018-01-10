@@ -1,7 +1,7 @@
 Describe "Configuration file locations" -tags "CI","Slow" {
 
     BeforeAll {
-        $powershell = Join-Path -Path $PsHome -ChildPath "powershell"
+        $powershell = Join-Path -Path $PsHome -ChildPath "pwsh"
         $profileName = "Microsoft.PowerShell_profile.ps1"
     }
 
@@ -30,20 +30,20 @@ Describe "Configuration file locations" -tags "CI","Slow" {
         }
 
         BeforeEach {
-            $original_PSMODULEPATH = $env:PSMODULEPATH
+            $original_PSModulePath = $env:PSModulePath
         }
 
         AfterEach {
-            $env:PSMODULEPATH = $original_PSMODULEPATH
+            $env:PSModulePath = $original_PSModulePath
         }
 
         It @ItArgs "Profile location should be correct" {
-            & $powershell -noprofile `$PROFILE | Should Be $expectedProfile
+            & $powershell -noprofile -c `$PROFILE | Should Be $expectedProfile
         }
 
-        It @ItArgs "PSMODULEPATH should contain the correct path" {
-            $env:PSMODULEPATH = ""
-            $actual = & $powershell -noprofile `$env:PSMODULEPATH
+        It @ItArgs "PSModulePath should contain the correct path" {
+            $env:PSModulePath = ""
+            $actual = & $powershell -noprofile -c `$env:PSModulePath
             $actual | Should Match ([regex]::Escape($expectedModule))
         }
 
@@ -72,14 +72,14 @@ Describe "Configuration file locations" -tags "CI","Slow" {
         }
 
         BeforeEach {
-            $original_PSMODULEPATH = $env:PSMODULEPATH
+            $original_PSModulePath = $env:PSModulePath
             $original_XDG_CONFIG_HOME = $env:XDG_CONFIG_HOME
             $original_XDG_CACHE_HOME = $env:XDG_CACHE_HOME
             $original_XDG_DATA_HOME = $env:XDG_DATA_HOME
         }
 
         AfterEach {
-            $env:PSMODULEPATH = $original_PSMODULEPATH
+            $env:PSModulePath = $original_PSModulePath
             $env:XDG_CONFIG_HOME = $original_XDG_CONFIG_HOME
             $env:XDG_CACHE_HOME = $original_XDG_CACHE_HOME
             $env:XDG_DATA_HOME = $original_XDG_DATA_HOME
@@ -88,14 +88,14 @@ Describe "Configuration file locations" -tags "CI","Slow" {
         It @ItArgs "Profile should respect XDG_CONFIG_HOME" {
             $env:XDG_CONFIG_HOME = $TestDrive
             $expected = [IO.Path]::Combine($TestDrive, "powershell", $profileName)
-            & $powershell -noprofile `$PROFILE | Should Be $expected
+            & $powershell -noprofile -c `$PROFILE | Should Be $expected
         }
 
-        It @ItArgs "PSMODULEPATH should respect XDG_DATA_HOME" {
-            $env:PSMODULEPATH = ""
+        It @ItArgs "PSModulePath should respect XDG_DATA_HOME" {
+            $env:PSModulePath = ""
             $env:XDG_DATA_HOME = $TestDrive
             $expected = [IO.Path]::Combine($TestDrive, "powershell", "Modules")
-            $actual = & $powershell -noprofile `$env:PSMODULEPATH
+            $actual = & $powershell -noprofile -c `$env:PSModulePath
             $actual | Should Match $expected
         }
 

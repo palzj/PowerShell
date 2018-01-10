@@ -21,17 +21,11 @@ namespace Microsoft.PowerShell.Commands.Internal
     using System.Management.Automation;
     using System.Globalization;
     using System.Diagnostics.CodeAnalysis;
+    using System.Runtime.ConstrainedExecution;
 
     using BOOL = System.Int32;
     using DWORD = System.UInt32;
     using ULONG = System.UInt32;
-
-#if CORECLR
-    // Use stubs for SuppressUnmanagedCodeSecurityAttribute and ReliabilityContractAttribute
-    using Microsoft.PowerShell.CoreClr.Stubs;
-#else
-    using System.Runtime.ConstrainedExecution;
-#endif
 
     /**
      * Win32 encapsulation for MSCORLIB.
@@ -101,12 +95,12 @@ namespace Microsoft.PowerShell.Commands.Internal
             internal SID_AND_ATTRIBUTES User;
         }
 
-        #endregion Struct 
+        #endregion Struct
 
-        #region PInvoke methods 
+        #region PInvoke methods
 
         /// <summary>
-        /// The LookupAccountSid function accepts a security identifier (SID) as input. It retrieves the name 
+        /// The LookupAccountSid function accepts a security identifier (SID) as input. It retrieves the name
         /// of the account for this SID and the name of the first domain on which this SID is found.
         /// </summary>
         /// <param name="lpSystemName"></param>
@@ -146,10 +140,10 @@ namespace Microsoft.PowerShell.Commands.Internal
         [ResourceExposure(ResourceScope.Machine)]
         [SuppressMessage("Microsoft.Security", "CA2118:ReviewSuppressUnmanagedCodeSecurityUsage")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool OpenProcessToken(SafeHandle processHandle, uint desiredAccess, out IntPtr tokenHandle);
+        internal static extern bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
 
         /// <summary>
-        /// The GetTokenInformation function retrieves a specified type of information about an access token. 
+        /// The GetTokenInformation function retrieves a specified type of information about an access token.
         /// The calling process must have appropriate access rights to obtain the information.
         /// </summary>
         /// <param name="tokenHandle"></param>
@@ -182,7 +176,7 @@ namespace Microsoft.PowerShell.Commands.Internal
         internal const int SECURITY_ANONYMOUS = ((int)SECURITY_IMPERSONATION_LEVEL.Anonymous << 16);
         internal const int SECURITY_SQOS_PRESENT = 0x00100000;
 
-#if !CORECLR // Only enable/port what is needed by CORE CLR. 
+#if !CORECLR // Only enable/port what is needed by CORE CLR.
 
         private const string resBaseName = "RegistryProviderStrings";
         internal const int KEY_QUERY_VALUE = 0x0001;
@@ -260,7 +254,7 @@ namespace Microsoft.PowerShell.Commands.Internal
         internal const int STANDARD_RIGHTS_WRITE = READ_CONTROL;
 
         // STANDARD_RIGHTS_REQUIRED  (0x000F0000L)
-        // SEMAPHORE_ALL_ACCESS          (STANDARD_RIGHTS_REQUIRED|SYNCHRONIZE|0x3) 
+        // SEMAPHORE_ALL_ACCESS          (STANDARD_RIGHTS_REQUIRED|SYNCHRONIZE|0x3)
 
         // SEMAPHORE and Event both use 0x0002
         // MUTEX uses 0x001 (MUTANT_QUERY_STATE)
@@ -896,27 +890,5 @@ namespace Microsoft.PowerShell.Commands.Internal
         }
 
 #endif
-    }
-
-
-    internal sealed class SafeProcessHandle : SafeHandle
-    {
-        internal SafeProcessHandle() : base(IntPtr.Zero, true) { }
-
-        internal SafeProcessHandle(IntPtr existingHandle)
-            : base(IntPtr.Zero, true)
-        {
-            SetHandle(existingHandle);
-        }
-
-        protected override bool ReleaseHandle()
-        {
-            return base.IsClosed ? true : Win32Native.CloseHandle(base.handle);
-        }
-
-        public override bool IsInvalid
-        {
-            get { return handle == IntPtr.Zero || handle == new IntPtr(-1); }
-        }
     }
 }

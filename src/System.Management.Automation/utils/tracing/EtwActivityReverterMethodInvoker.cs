@@ -1,6 +1,7 @@
 #if !UNIX
 //-----------------------------------------------------------------------
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
+// <copyright company="Microsoft">
+//    Copyright (c) Microsoft Corporation. All rights reserved.
 // </copyright>
 //-----------------------------------------------------------------------
 
@@ -33,7 +34,7 @@ namespace System.Management.Automation.Tracing
 
 #endregion
 
-#region Instsance Access
+#region Instance Access
 
         public Delegate Invoker
         {

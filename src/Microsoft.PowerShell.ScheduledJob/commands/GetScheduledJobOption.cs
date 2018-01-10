@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -9,10 +9,10 @@ using System.Management.Automation;
 namespace Microsoft.PowerShell.ScheduledJob
 {
     /// <summary>
-    /// This cmdlet gets  scheduled job option object from a provided ScheduledJobDefinition object.
+    /// This cmdlet gets scheduled job option object from a provided ScheduledJobDefinition object.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, "ScheduledJobOption", DefaultParameterSetName = GetScheduledJobOptionCommand.JobDefinitionParameterSet,
-        HelpUri = "http://go.microsoft.com/fwlink/?LinkID=223920")]
+        HelpUri = "https://go.microsoft.com/fwlink/?LinkID=223920")]
     [OutputType(typeof(ScheduledJobOptions))]
     public sealed class GetScheduledJobOptionCommand : ScheduleJobCmdletBase
     {
@@ -23,9 +23,9 @@ namespace Microsoft.PowerShell.ScheduledJob
         private const string JobDefinitionNameParameterSet = "JobDefinitionName";
 
         /// <summary>
-        /// ScheduledJobDefition Id.
+        /// ScheduledJobDefinition Id.
         /// </summary>
-        [Parameter(Position = 0, Mandatory = true, 
+        [Parameter(Position = 0, Mandatory = true,
                    ParameterSetName = GetScheduledJobOptionCommand.JobDefinitionIdParameterSet)]
         public Int32 Id
         {

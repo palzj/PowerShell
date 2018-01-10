@@ -17,25 +17,18 @@ using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Text;
 using System.Security;
-using Dbg = System.Management.Automation.Diagnostics;
-
-#if CORECLR
-
-using Environment = System.Management.Automation.Environment;
-
-#endif
 
 namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     [SuppressMessage("Microsoft.MSInternal", "CA903:InternalNamespaceShouldNotContainPublicTypes",
         Justification = "Needed Internal use only")]
     public static class DscRemoteOperationsClass
     {
         /// <summary>
-        /// Convert Cim Instance representing Resource desired state to Powershell Class Object 
+        /// Convert Cim Instance representing Resource desired state to Powershell Class Object
         /// </summary>
         public static object ConvertCimInstanceToObject(Type targetType, CimInstance instance, string moduleName)
         {
@@ -75,7 +68,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                 {
                     MemberInfo[] memberInfo = targetType.GetMember(property.Name, BindingFlags.Public | BindingFlags.Instance);
 
-                    // verify property exists in corresponding class type 
+                    // verify property exists in corresponding class type
                     if (memberInfo == null || memberInfo.Length > 1 || !(memberInfo[0] is PropertyInfo || memberInfo[0] is FieldInfo))
                     {
                         errorMessage = string.Format(CultureInfo.CurrentCulture, ParserStrings.PropertyNotDeclaredInPSClass, new object[] { property.Name, className });
@@ -170,10 +163,10 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
         }
 
         /// <summary>
-        /// Convert hashtable from Ciminstance to hashtable primitive type 
+        /// Convert hashtable from Ciminstance to hashtable primitive type
         /// </summary>
         /// <param name="providerName"></param>
-        /// <param name="arrayInstance"></param>        
+        /// <param name="arrayInstance"></param>
         /// <returns></returns>
         private static object ConvertCimInstanceHashtable(string providerName, CimInstance[] arrayInstance)
         {
@@ -209,7 +202,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
         /// Convert CIM instance to PS Credential
         /// </summary>
         /// <param name="providerName"></param>
-        /// <param name="propertyInstance"></param>        
+        /// <param name="propertyInstance"></param>
         /// <returns></returns>
         private static object ConvertCimInstancePsCredential(string providerName, CimInstance propertyInstance)
         {
@@ -498,12 +491,12 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
             StringComparer.OrdinalIgnoreCase);
 
         //a collection to hold current importing script based resource file
-        //this prevent circular importing case when the script resource exising in the same module with resources it import-dscresource
+        //this prevent circular importing case when the script resource existing in the same module with resources it import-dscresource
         private static readonly HashSet<string> s_currentImportingScriptFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// DSC class cache for this runspace.
-        /// Cache stores the DSCRunAsBehavior for the class along with actual cim class. 
+        /// Cache stores the DSCRunAsBehavior for the class along with actual cim class.
         /// </summary>
         private static Dictionary<string, Tuple<DSCResourceRunAsCredential, Microsoft.Management.Infrastructure.CimClass>> ClassCache
         {
@@ -618,15 +611,6 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
             Initialize(null, null);
         }
 
-#if CORECLR
-        /// <summary>
-        /// </summary>
-        private static string SystemDirectory
-        {
-            get { return Environment.GetFolderPath(Environment.SpecialFolder.System); }
-        }
-#endif
-
         /// <summary>
         /// Initialize the class cache with the default classes in $ENV:SystemDirectory\Configuration.
         /// </summary>
@@ -679,12 +663,8 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
             }
             else
             {
-#if CORECLR
-                var systemResourceRoot = Path.Combine(SystemDirectory, "Configuration");
-#else
-                var systemResourceRoot = Path.Combine(Environment.SystemDirectory, "Configuration");
-#endif
-                var programFilesDirectory = Environment.GetEnvironmentVariable("ProgramFiles");
+                var systemResourceRoot = Path.Combine(Platform.GetFolderPath(Environment.SpecialFolder.System), "Configuration");
+                var programFilesDirectory = Platform.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
                 Debug.Assert(programFilesDirectory != null, "Program Files environment variable does not exist!");
                 var customResourceRoot = Path.Combine(programFilesDirectory, "WindowsPowerShell\\Configuration");
                 Debug.Assert(Directory.Exists(customResourceRoot), "%ProgramFiles%\\WindowsPowerShell\\Configuration Directory does not exist");
@@ -724,11 +704,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                 List<string> modulePaths = new List<string>();
                 if (modulePathList == null || modulePathList.Count == 0)
                 {
-#if CORECLR
-                    modulePaths.Add(Path.Combine(SystemDirectory, InboxDscResourceModulePath));
-#else
-                    modulePaths.Add(Path.Combine(Environment.SystemDirectory, InboxDscResourceModulePath));
-#endif
+                    modulePaths.Add(Path.Combine(Platform.GetFolderPath(Environment.SpecialFolder.System), InboxDscResourceModulePath));
                     isInboxResource = true;
                 }
                 else
@@ -989,11 +965,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
 
             if (value != null)
             {
-#if CORECLR
-                IntPtr ptr = SecureStringMarshal.SecureStringToCoTaskMemUnicode(value);
-#else
                 IntPtr ptr = Marshal.SecureStringToCoTaskMemUnicode(value);
-#endif
                 passwordValueToAdd = Marshal.PtrToStringUni(ptr);
                 Marshal.ZeroFreeCoTaskMemUnicode(ptr);
             }
@@ -1179,7 +1151,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
         }
 
         /// <summary>
-        /// A routine that validates a string contining MOF instances against the
+        /// A routine that validates a string containing MOF instances against the
         /// current set of cached classes.
         /// </summary>
         /// <param name="instanceText"></param>
@@ -1275,7 +1247,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
             // And now define the driver functions in the current scope...
             if (functionsToDefine != null)
             {
-                functionsToDefine[moduleName + "\\" + keyword.Keyword] = CimKeywordImlementationFunction;
+                functionsToDefine[moduleName + "\\" + keyword.Keyword] = CimKeywordImplementationFunction;
             }
         }
 
@@ -1364,7 +1336,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                 {
                     if (String.Equals(prop.Name, "PsDscRunAsCredential", StringComparison.OrdinalIgnoreCase))
                     {
-                        // skip adding PsDscRunAsCredential to the dynamic word for the dsc resource. 
+                        // skip adding PsDscRunAsCredential to the dynamic word for the dsc resource.
                         continue;
                     }
                 }
@@ -1424,7 +1396,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                         keyProp.Mandatory = true;
                     }
 
-                    // set the property to mandatory is specified for the resource. 
+                    // set the property to mandatory is specified for the resource.
                     if (runAsBehavior == DSCResourceRunAsCredential.Mandatory)
                     {
                         if (String.Equals(prop.Name, "PsDscRunAsCredential", StringComparison.OrdinalIgnoreCase))
@@ -1680,13 +1652,13 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                                              string.Format(CultureInfo.CurrentCulture, ParserStrings.ImportDscResourceNeedParams)));
             }
 
-            // Check here if Version is specified but modulename is not specified 
+            // Check here if Version is specified but modulename is not specified
             if (moduleVersionBindingResult != null && moduleNameBindingResult == null)
             {
                 // only add this error again to the error list if resources is not null
                 // if resources and modules are both null we have already added this error in collection
                 // we do not want to do this twice. since we are giving same error ImportDscResourceNeedParams in both cases
-                // once we have different error messages for 2 scenarios we can remove this check 
+                // once we have different error messages for 2 scenarios we can remove this check
                 if (resourceNameBindingResult != null)
                 {
                     errorList.Add(new ParseError(kwAst.Extent,
@@ -1748,7 +1720,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
 
                 if (LanguagePrimitives.TryConvertTo(moduleName, out moduleSpecifications))
                 {
-                    // if resourceNames are specifed then we can not specify multiple modules name 
+                    // if resourceNames are specified then we can not specify multiple modules name
                     if (moduleSpecifications != null && moduleSpecifications.Length > 1 && resourceNames != null)
                     {
                         errorList.Add(new ParseError(moduleNameBindingResult.Value.Extent,
@@ -1756,7 +1728,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                                                      string.Format(CultureInfo.CurrentCulture, ParserStrings.ImportDscResourceMultipleModulesNotSupportedWithName)));
                     }
 
-                    // if moduleversion is specifed then we can not specify multiple modules name 
+                    // if moduleversion is specified then we can not specify multiple modules name
                     if (moduleSpecifications != null && moduleSpecifications.Length > 1 && moduleVersion != null)
                     {
                         errorList.Add(new ParseError(moduleNameBindingResult.Value.Extent,
@@ -1764,7 +1736,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                                                      string.Format(CultureInfo.CurrentCulture, ParserStrings.ImportDscResourceNeedParams)));
                     }
 
-                    // if moduleversion is specifed then we can not specify another version in modulespecification object of ModuleName  
+                    // if moduleversion is specified then we can not specify another version in modulespecification object of ModuleName
                     if (moduleSpecifications != null && (moduleSpecifications[0].Version != null || moduleSpecifications[0].MaximumVersion != null) && moduleVersion != null)
                     {
                         errorList.Add(new ParseError(moduleNameBindingResult.Value.Extent,
@@ -1773,7 +1745,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                     }
 
                     // If moduleVersion is specified we have only one module Name in valid scenario
-                    // So update it's version property in module specification object that will be used to load modules 
+                    // So update it's version property in module specification object that will be used to load modules
                     if (moduleSpecifications != null && moduleSpecifications[0].Version == null && moduleSpecifications[0].MaximumVersion == null && moduleVersion != null)
                     {
                         moduleSpecifications[0].Version = moduleVersion;
@@ -1870,7 +1842,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                     {
                         if (mandatoryPropertiesNames.Remove(presentName) && mandatoryPropertiesNames.Count == 0)
                         {
-                            // optimization, once all mandotory properties are specified, we can safely exit.
+                            // optimization, once all mandatory properties are specified, we can safely exit.
                             return null;
                         }
                     }
@@ -2021,7 +1993,6 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                             }
                             catch (Exception e)
                             {
-                                CommandProcessorBase.CheckForSevereException(e);
                                 errorList.Add(new ParseError(scriptExtent,
                                                              "ExceptionParsingMOFFile",
                                                              string.Format(CultureInfo.CurrentCulture, ParserStrings.ExceptionParsingMOFFile, schemaMofFilePath, e.Message)));
@@ -2042,7 +2013,6 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                             catch (Exception e)
                             {
                                 // This shouldn't happen so just report the error as is
-                                CommandProcessorBase.CheckForSevereException(e);
                                 errorList.Add(new ParseError(scriptExtent,
                                                              "UnexpectedParseError",
                                                              string.Format(CultureInfo.CurrentCulture, e.ToString())));
@@ -2589,7 +2559,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
 
                 if (skip) continue;
 
-                // Parse the Resource Attribute to see if RunAs behavior is specified for the resource. 
+                // Parse the Resource Attribute to see if RunAs behavior is specified for the resource.
                 DSCResourceRunAsCredential runAsBehavior = DSCResourceRunAsCredential.Default;
                 foreach (var attr in resourceDefnAst.Attributes)
                 {
@@ -2710,7 +2680,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                 return false;
             }
 
-            // #3 property count, names, values, qualifiers and types should be same            
+            // #3 property count, names, values, qualifiers and types should be same
             if (!ArePropertiesSame(oldClass.CimClassProperties, newClass.CimClassProperties))
             {
                 return false;
@@ -3167,7 +3137,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                             if (classes != null)
                             {
                                 //
-                                // search if class'es friendly name is the given resourceName
+                                // search if class's friendly name is the given resourceName
                                 //
                                 foreach (var c in classes)
                                 {
@@ -3292,7 +3262,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
         }
 
         /// <summary>
-        /// Refresh Mode can not be Disabled for the Partial Configurations. 
+        /// Refresh Mode can not be Disabled for the Partial Configurations.
         /// </summary>
         /// <param name="resourceId"></param>
         /// <returns></returns>
@@ -3431,9 +3401,9 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
         }
 
         /// <summary>
-        /// Returns an error record to use when composite resource and its resource instances both has PsDscRunAsCredentials value  
+        /// Returns an error record to use when composite resource and its resource instances both has PsDscRunAsCredentials value
         /// </summary>
-        /// <param name="resourceId">resourceId of resource</param>        
+        /// <param name="resourceId">resourceId of resource</param>
         /// <returns></returns>
         public static ErrorRecord PsDscRunAsCredentialMergeErrorForCompositeResources(string resourceId)
         {
@@ -3581,19 +3551,19 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
         }
 
         /// <summary>
-        /// The scriptblock that implementes the CIM keyword functionality.
+        /// The scriptblock that implements the CIM keyword functionality.
         /// </summary>
-        private static ScriptBlock CimKeywordImlementationFunction
+        private static ScriptBlock CimKeywordImplementationFunction
         {
             get
             {
                 // The scriptblock cache will handle mutual exclusion
-                return s_cimKeywordImlementationFunction ??
-                       (s_cimKeywordImlementationFunction = ScriptBlock.Create(CimKeywordImlementationFunctionText));
+                return s_cimKeywordImplementationFunction ??
+                       (s_cimKeywordImplementationFunction = ScriptBlock.Create(CimKeywordImplementationFunctionText));
             }
         }
-        private static ScriptBlock s_cimKeywordImlementationFunction;
-        private const string CimKeywordImlementationFunctionText = @"
+        private static ScriptBlock s_cimKeywordImplementationFunction;
+        private const string CimKeywordImplementationFunctionText = @"
     param (
         [Parameter(Mandatory)]
             $KeywordData,
@@ -3608,11 +3578,11 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
 
 # walk the call stack to get at all of the enclosing configuration resource IDs
     $stackedConfigs = @(Get-PSCallStack |
-        where { ($_.InvocationInfo.MyCommand -ne $null) -and ($_.InvocationInfo.MyCommand.CommandType -eq 'Configuration') })
+        where { ($null -ne $_.InvocationInfo.MyCommand) -and ($_.InvocationInfo.MyCommand.CommandType -eq 'Configuration') })
 # keep all but the top-most
     $stackedConfigs = $stackedConfigs[0..(@($stackedConfigs).Length - 2)]
 # and build the complex resource ID suffix.
-    $complexResourceQualifier = ( $stackedConfigs | foreach { '[' + $_.Command + ']' + $_.InvocationInfo.BoundParameters['InstanceName'] } ) -join '::'
+    $complexResourceQualifier = ( $stackedConfigs | ForEach-Object { '[' + $_.Command + ']' + $_.InvocationInfo.BoundParameters['InstanceName'] } ) -join '::'
 
 #
 # Utility function used to validate that the DependsOn arguments are well-formed.
@@ -3644,7 +3614,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
         }
         $value['DependsOn']= $updatedDependsOn
 
-        if($DependsOn -ne $null)
+        if($null -ne $DependsOn)
         {
 #
 # Combine DependsOn with dependson from outer composite resource
@@ -3708,31 +3678,31 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
         }
         else
         {
-# If there are prerequsite resources, validate that the references are well-formed strings
+# If there are prerequisite resources, validate that the references are well-formed strings
 # This routine also adds the resource to the global node resources table.
             Test-DependsOn
 
-# Check if PsDscRunCredetial is being specified as Arguments to Configuration
-        if($PsDscRunAsCredential -ne $null)
+# Check if PsDscRunCredential is being specified as Arguments to Configuration
+        if($null -ne $PsDscRunAsCredential)
         {
 # Check if resource is also trying to set the value for RunAsCred
-# In that case we will generate error during compilation, this is merge error 
-        if($value['PsDscRunAsCredential'] -ne $null)
+# In that case we will generate error during compilation, this is merge error
+        if($null -ne $value['PsDscRunAsCredential'])
         {
             Update-ConfigurationErrorCount
-            Write-Error -ErrorRecord ([Microsoft.PowerShell.DesiredStateConfiguration.Internal.DscClassCache]::PsDscRunAsCredentialMergeErrorForCompositeResources($resourceId))            
+            Write-Error -ErrorRecord ([Microsoft.PowerShell.DesiredStateConfiguration.Internal.DscClassCache]::PsDscRunAsCredentialMergeErrorForCompositeResources($resourceId))
         }
-# Set the Value of RunAsCred to that of outer configuration 
+# Set the Value of RunAsCred to that of outer configuration
         else
         {
             $value['PsDscRunAsCredential'] = $PsDscRunAsCredential
         }
     }
- 
+
 # Save the resource id in a per-node dictionary to do cross validation at the end
             if($keywordData.ImplementingModule -ieq ""PSDesiredStateConfigurationEngine"")
             {
-#$keywordName is PartialConfiguration 
+#$keywordName is PartialConfiguration
                 if($keywordName -eq 'PartialConfiguration')
                 {
 # RefreshMode is 'Pull' and .ConfigurationSource is empty
@@ -3741,7 +3711,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                         Update-ConfigurationErrorCount
                         Write-Error -ErrorRecord ([Microsoft.PowerShell.DesiredStateConfiguration.Internal.DscClassCache]::GetPullModeNeedConfigurationSource($resourceId))
                     }
-                
+
 # Verify that RefreshMode is not Disabled for Partial configuration
                     if($value['RefreshMode'] -eq 'Disabled')
                     {
@@ -3749,19 +3719,19 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
                         Write-Error -ErrorRecord ([Microsoft.PowerShell.DesiredStateConfiguration.Internal.DscClassCache]::DisabledRefreshModeNotValidForPartialConfig($resourceId))
                     }
 
-                    if($value['ConfigurationSource'] -ne $null)
+                    if($null -ne $value['ConfigurationSource'])
                     {
                         Set-NodeManager $resourceId $value['ConfigurationSource']
                     }
 
-                    if($value['ResourceModuleSource'] -ne $null)
+                    if($null -ne $value['ResourceModuleSource'])
                     {
                         Set-NodeResourceSource $resourceId $value['ResourceModuleSource']
                     }
                 }
 
 
-                if($value['ExclusiveResources'] -ne $null)
+                if($null -ne $value['ExclusiveResources'])
                 {
 # make sure the references are well-formed
                     foreach ($ExclusiveResource in $value['ExclusiveResources']) {
@@ -3804,7 +3774,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
 # If there is and user-provided value is not in that list, write an error.
             if ($allowedValues)
             {
-                if(($value[$key] -eq $null) -and ($allowedValues -notcontains $value[$key]))
+                if(($null -eq $value[$key]) -and ($allowedValues -notcontains $value[$key]))
                 {
                     Write-Error -ErrorRecord ([Microsoft.PowerShell.DesiredStateConfiguration.Internal.DscClassCache]::InvalidValueForPropertyErrorRecord($key, ""$($value[$key])"", $keywordData.Keyword, ($allowedValues -join ', ')))
                     Update-ConfigurationErrorCount
@@ -3834,7 +3804,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
             if($allowedRange)
             {
                 $castedValue = $value[$key] -as [int]
-                if((($castedValue -is [int]) -and (($castedValue -lt  $keywordData.Properties[$key].Range.Item1) -or ($castedValue -gt $keywordData.Properties[$key].Range.Item2))) -or ($castedValue -eq $null))
+                if((($castedValue -is [int]) -and (($castedValue -lt  $keywordData.Properties[$key].Range.Item1) -or ($castedValue -gt $keywordData.Properties[$key].Range.Item2))) -or ($null -eq $castedValue))
                 {
                     Write-Error -ErrorRecord ([Microsoft.PowerShell.DesiredStateConfiguration.Internal.DscClassCache]::ValueNotInRangeErrorRecord($key, $keywordName, $value[$key],  $keywordData.Properties[$key].Range.Item1,  $keywordData.Properties[$key].Range.Item2))
                     Update-ConfigurationErrorCount
@@ -3845,7 +3815,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
 
             if ($keywordData.Properties[$key].IsKey)
             {
-                if($value[$key] -eq $null)
+                if($null -eq $value[$key])
                 {
                     $keyValues += ""::__NULL__""
                 }
@@ -3927,7 +3897,7 @@ namespace Microsoft.PowerShell.DesiredStateConfiguration.Internal
             Update-ConfigurationErrorCount
         }
     }
-        
+
 
 # Generate the MOF text for this resource instance.
 # when generate mof text for OMI_ConfigurationDocument we handle below two cases:

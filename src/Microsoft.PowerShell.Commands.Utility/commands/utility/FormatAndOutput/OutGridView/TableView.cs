@@ -1,5 +1,5 @@
 //
-//    Copyright (C) Microsoft.  All rights reserved.
+//    Copyright (c) Microsoft Corporation. All rights reserved.
 //
 
 namespace Microsoft.PowerShell.Commands
@@ -180,7 +180,7 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Method to filter resolved expressions as per table view needs.
         /// For v1.0, table view supports only 10 properties.
-        /// 
+        ///
         /// This method filters and updates "activeAssociationList" instance property.
         /// </summary>
         /// <returns>None.</returns>

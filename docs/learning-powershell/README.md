@@ -20,7 +20,7 @@ At the end of this exercise, you should be able to launch the PowerShell session
 
 - Get PowerShell by installing package
  * [PowerShell on Linux][inst-linux]
- * [PowerShell on OS X][inst-linux]
+ * [PowerShell on macOS][inst-macos]
  * [PowerShell on Windows][inst-win]
 
   For this tutorial, you do not need to install PowerShell if you are running on Windows.
@@ -31,6 +31,7 @@ At the end of this exercise, you should be able to launch the PowerShell session
 
 [inst-linux]: ../installation/linux.md
 [inst-win]: ../installation/windows.md
+[inst-macos]: ../installation/macos.md
 
 Getting Started with PowerShell
 ----
@@ -47,7 +48,7 @@ PowerShell Editor
 
 In this section, you will create a PowerShell script using a text editor.
 You can use your favorite editor to write scripts.
-We use Visual Studio Code (VS Code) which works on Windows, Linux, and OS X.
+We use Visual Studio Code (VS Code) which works on Windows, Linux, and macOS.
 Click on the following link to create your first PowerShell script.
 
 - [Using Visual Studio Code (VS Code)][use-vscode-editor]
@@ -98,7 +99,7 @@ Note that all bash commands should continue working on PowerShell session.
 | rm test.txt                     |Remove-Item test.txt                   |Delete a file
 | rm -r &lt;folderName>           |Remove-Item &lt;folderName> -Recurse   |Delete a folder
 | find -name build*               |Get-ChildItem build* -Recurse          |Find a file or folder starting with 'build'
-| grep -Rin "sometext" --include="*.cs" |Get-ChildItem -Recurse -Filter *.cs <br> &#124; Select-String -Pattern "sometext" | Recursively case-insensitive search for text in files
+| grep -Rin "sometext" --include="*.cs" |Get-ChildItem -Recurse -Filter *.cs <br> \| Select-String -Pattern "sometext" | Recursively case-insensitive search for text in files
 
 
 Recommended Training and Reading

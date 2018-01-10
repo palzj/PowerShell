@@ -1,14 +1,11 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-#if CORECLR
-using Microsoft.PowerShell.Internal;
-#endif
 
 namespace Microsoft.PowerShell
 {
@@ -121,7 +118,7 @@ namespace Microsoft.PowerShell
         public T this[int index]
         {
             get
-            { 
+            {
                 Debug.Assert(index >= 0 && index < Count);
                 return _array[(_head + index) % _array.Length];
             }

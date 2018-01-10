@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using Microsoft.PowerShell.Commands;
@@ -27,7 +27,7 @@ namespace System.Management.Automation.Language
         /// </summary>
         NoName = 0,
         /// <summary>
-        /// Name must be present and simple non-empty bare word 
+        /// Name must be present and simple non-empty bare word
         /// </summary>
         SimpleNameRequired = 1,
         /// <summary>
@@ -65,7 +65,7 @@ namespace System.Management.Automation.Language
 
     /// <summary>
     /// Defines the schema/behaviour for a dynamic keyword.
-    /// a constrained 
+    /// a constrained
     /// </summary>
     public class DynamicKeyword
     {
@@ -119,7 +119,7 @@ namespace System.Management.Automation.Language
         }
 
         /// <summary>
-        /// Pop up previous  dynamicKeywords cache
+        /// Pop up previous dynamicKeywords cache
         /// </summary>
         public static void Pop()
         {
@@ -127,7 +127,7 @@ namespace System.Management.Automation.Language
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
@@ -148,7 +148,7 @@ namespace System.Management.Automation.Language
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
@@ -164,7 +164,7 @@ namespace System.Management.Automation.Language
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="keywordToAdd"></param>
         public static void AddKeyword(DynamicKeyword keywordToAdd)
@@ -188,7 +188,7 @@ namespace System.Management.Automation.Language
 
         /// <summary>
         /// Remove a single entry from the dynamic keyword collection
-        /// and clean up any assoicated data.
+        /// and clean up any associated data.
         /// </summary>
         /// <param name="name"></param>
         public static void RemoveKeyword(string name)
@@ -290,7 +290,7 @@ namespace System.Management.Automation.Language
         /// rewrite the node as a simple direct function call.
         /// If NameMode is other than NoName, then the name of the instance
         /// will be passed as the parameter -InstanceName.
-        /// 
+        ///
         /// </summary>
         public bool DirectCall { get; set; }
 
@@ -306,7 +306,7 @@ namespace System.Management.Automation.Language
         public bool MetaStatement { get; set; }
 
         /// <summary>
-        /// Indicate that the keyword is reservce for future use by powershell
+        /// Indicate that the keyword is reserved for future use by powershell
         /// </summary>
         public bool IsReservedKeyword { get; set; }
 
@@ -507,6 +507,9 @@ namespace System.Management.Automation.Language
         private static readonly Dictionary<string, TokenKind> s_operatorTable
             = new Dictionary<string, TokenKind>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly char s_invalidChar = char.MaxValue;
+        private static readonly int s_maxNumberOfUnicodeHexDigits = 6;
+
         private readonly Parser _parser;
         private PositionHelper _positionHelper;
         private int _nestedTokensAdjustment;
@@ -559,15 +562,15 @@ namespace System.Management.Automation.Language
         };
 
         internal static readonly string[] _operatorText = new string[] {
-        /*1*/   "bnot",                 "not",                  "eq",                   "ieq",                    /*1*/ 
-        /*2*/   "ceq",                  "ne",                   "ine",                  "cne",                    /*2*/ 
-        /*3*/   "ge",                   "ige",                  "cge",                  "gt",                     /*3*/ 
-        /*4*/   "igt",                  "cgt",                  "lt",                   "ilt",                    /*4*/ 
-        /*5*/   "clt",                  "le",                   "ile",                  "cle",                    /*5*/ 
-        /*6*/   "like",                 "ilike",                "clike",                "notlike",                /*6*/ 
-        /*7*/   "inotlike",             "cnotlike",             "match",                "imatch",                 /*7*/ 
-        /*8*/   "cmatch",               "notmatch",             "inotmatch",            "cnotmatch",              /*8*/ 
-        /*9*/   "replace",              "ireplace",             "creplace",             "contains",               /*9*/ 
+        /*1*/   "bnot",                 "not",                  "eq",                   "ieq",                    /*1*/
+        /*2*/   "ceq",                  "ne",                   "ine",                  "cne",                    /*2*/
+        /*3*/   "ge",                   "ige",                  "cge",                  "gt",                     /*3*/
+        /*4*/   "igt",                  "cgt",                  "lt",                   "ilt",                    /*4*/
+        /*5*/   "clt",                  "le",                   "ile",                  "cle",                    /*5*/
+        /*6*/   "like",                 "ilike",                "clike",                "notlike",                /*6*/
+        /*7*/   "inotlike",             "cnotlike",             "match",                "imatch",                 /*7*/
+        /*8*/   "cmatch",               "notmatch",             "inotmatch",            "cnotmatch",              /*8*/
+        /*9*/   "replace",              "ireplace",             "creplace",             "contains",               /*9*/
         /*10*/  "icontains",            "ccontains",            "notcontains",          "inotcontains",           /*10*/
         /*11*/  "cnotcontains",         "in",                   "iin",                  "cin",                    /*11*/
         /*12*/  "notin",                "inotin",               "cnotin",               "split",                  /*12*/
@@ -578,15 +581,15 @@ namespace System.Management.Automation.Language
         };
 
         private static readonly TokenKind[] s_operatorTokenKind = new TokenKind[] {
-        /*1*/   TokenKind.Bnot,         TokenKind.Not,          TokenKind.Ieq,          TokenKind.Ieq,            /*1*/ 
-        /*2*/   TokenKind.Ceq,          TokenKind.Ine,          TokenKind.Ine,          TokenKind.Cne,            /*2*/ 
-        /*3*/   TokenKind.Ige,          TokenKind.Ige,          TokenKind.Cge,          TokenKind.Igt,            /*3*/ 
-        /*4*/   TokenKind.Igt,          TokenKind.Cgt,          TokenKind.Ilt,          TokenKind.Ilt,            /*4*/ 
-        /*5*/   TokenKind.Clt,          TokenKind.Ile,          TokenKind.Ile,          TokenKind.Cle,            /*5*/ 
-        /*6*/   TokenKind.Ilike,        TokenKind.Ilike,        TokenKind.Clike,        TokenKind.Inotlike,       /*6*/ 
-        /*7*/   TokenKind.Inotlike,     TokenKind.Cnotlike,     TokenKind.Imatch,       TokenKind.Imatch,         /*7*/ 
-        /*8*/   TokenKind.Cmatch,       TokenKind.Inotmatch,    TokenKind.Inotmatch,    TokenKind.Cnotmatch,      /*8*/ 
-        /*9*/   TokenKind.Ireplace,     TokenKind.Ireplace,     TokenKind.Creplace,     TokenKind.Icontains,      /*9*/ 
+        /*1*/   TokenKind.Bnot,         TokenKind.Not,          TokenKind.Ieq,          TokenKind.Ieq,            /*1*/
+        /*2*/   TokenKind.Ceq,          TokenKind.Ine,          TokenKind.Ine,          TokenKind.Cne,            /*2*/
+        /*3*/   TokenKind.Ige,          TokenKind.Ige,          TokenKind.Cge,          TokenKind.Igt,            /*3*/
+        /*4*/   TokenKind.Igt,          TokenKind.Cgt,          TokenKind.Ilt,          TokenKind.Ilt,            /*4*/
+        /*5*/   TokenKind.Clt,          TokenKind.Ile,          TokenKind.Ile,          TokenKind.Cle,            /*5*/
+        /*6*/   TokenKind.Ilike,        TokenKind.Ilike,        TokenKind.Clike,        TokenKind.Inotlike,       /*6*/
+        /*7*/   TokenKind.Inotlike,     TokenKind.Cnotlike,     TokenKind.Imatch,       TokenKind.Imatch,         /*7*/
+        /*8*/   TokenKind.Cmatch,       TokenKind.Inotmatch,    TokenKind.Inotmatch,    TokenKind.Cnotmatch,      /*8*/
+        /*9*/   TokenKind.Ireplace,     TokenKind.Ireplace,     TokenKind.Creplace,     TokenKind.Icontains,      /*9*/
         /*10*/  TokenKind.Icontains,    TokenKind.Ccontains,    TokenKind.Inotcontains, TokenKind.Inotcontains,   /*10*/
         /*11*/  TokenKind.Cnotcontains, TokenKind.Iin,          TokenKind.Iin,          TokenKind.Cin,            /*11*/
         /*12*/  TokenKind.Inotin,       TokenKind.Inotin,       TokenKind.Cnotin,       TokenKind.Isplit,         /*12*/
@@ -1229,19 +1232,116 @@ namespace System.Management.Automation.Language
             return i;
         }
 
-        private static char Backtick(char c)
+        private char Backtick(char c, out char surrogateCharacter)
         {
+            surrogateCharacter = s_invalidChar;
+
             switch (c)
             {
                 case '0': return '\0';
                 case 'a': return '\a';
                 case 'b': return '\b';
+                case 'e': return '\u001b';
                 case 'f': return '\f';
                 case 'n': return '\n';
                 case 'r': return '\r';
                 case 't': return '\t';
+                case 'u': return ScanUnicodeEscape(out surrogateCharacter);
                 case 'v': return '\v';
                 default: return c;
+            }
+        }
+
+        private char ScanUnicodeEscape(out char surrogateCharacter)
+        {
+            int escSeqStartIndex = _currentIndex - 2;
+            surrogateCharacter = s_invalidChar;
+
+            char c = GetChar();
+            if (c != '{')
+            {
+                UngetChar();
+
+                IScriptExtent errorExtent = NewScriptExtent(escSeqStartIndex, _currentIndex);
+                ReportError(errorExtent, () => ParserStrings.InvalidUnicodeEscapeSequence);
+                return s_invalidChar;
+            }
+
+            // Scan the rest of the Unicode escape sequence - one to six hex digits terminated plus the closing '}'.
+            var sb = GetStringBuilder();
+            int i;
+            for (i = 0; i < s_maxNumberOfUnicodeHexDigits + 1; i++)
+            {
+                c = GetChar();
+
+                // Sequence has been terminated.
+                if (c == '}')
+                {
+                    if (i == 0)
+                    {
+                        // Sequence must have at least one hex char.
+                        Release(sb);
+                        IScriptExtent errorExtent = NewScriptExtent(escSeqStartIndex, _currentIndex);
+                        ReportError(errorExtent, () => ParserStrings.InvalidUnicodeEscapeSequence);
+                        return s_invalidChar;
+                    }
+
+                    break;
+                }
+                else if (!c.IsHexDigit())
+                {
+                    UngetChar();
+
+                    Release(sb);
+                    ReportError(_currentIndex,
+                        i < s_maxNumberOfUnicodeHexDigits
+                            ? (Expression<Func<string>>)(() => ParserStrings.InvalidUnicodeEscapeSequence)
+                            : () => ParserStrings.MissingUnicodeEscapeSequenceTerminator);
+                    return s_invalidChar;
+                }
+                else if (i == s_maxNumberOfUnicodeHexDigits) {
+                    UngetChar();
+
+                    Release(sb);
+                    ReportError(_currentIndex, () => ParserStrings.TooManyDigitsInUnicodeEscapeSequence);
+                    return s_invalidChar;
+                }
+
+                sb.Append(c);
+            }
+
+            string hexStr = GetStringAndRelease(sb);
+
+            uint unicodeValue = uint.Parse(hexStr, NumberStyles.AllowHexSpecifier, NumberFormatInfo.InvariantInfo);
+            if (unicodeValue <= Char.MaxValue)
+            {
+                return ((char)unicodeValue);
+            }
+            else if (unicodeValue <= 0x10FFFF)
+            {
+                return GetCharsFromUtf32(unicodeValue, out surrogateCharacter);
+            }
+            else
+            {
+                // Place the error indicator under only the hex digits in the esc sequence.
+                IScriptExtent errorExtent = NewScriptExtent(escSeqStartIndex + 3, _currentIndex - 1);
+                ReportError(errorExtent, () => ParserStrings.InvalidUnicodeEscapeSequenceValue);
+                return s_invalidChar;
+            }
+        }
+
+        private static char GetCharsFromUtf32(uint codepoint, out char lowSurrogate)
+        {
+            if (codepoint < (uint)0x00010000)
+            {
+                lowSurrogate = s_invalidChar;
+                return (char)codepoint;
+            }
+            else
+            {
+                Diagnostics.Assert((codepoint > 0x0000FFFF) && (codepoint <= 0x0010FFFF), "Codepoint is out of range for a surrogate pair");
+                lowSurrogate = (char)((codepoint - 0x00010000) % 0x0400 + 0xDC00);
+                return (char)((codepoint - 0x00010000) / 0x0400 + 0xD800);
             }
         }
 
@@ -1365,7 +1465,7 @@ namespace System.Management.Automation.Language
                             //
                             // The average script is 14% comments and parses in about 5.05 ms with this algorithm,
                             // about 4.45 ms with the more simplistic algorithm.
-                            // 
+                            //
                             string commentLineComparison = commentLine.ToString().ToLowerInvariant();
 
                             int sawBeginTokenSimilarity = GetStringSimilarity(commentLineComparison, beginSignatureTextNoSpace);
@@ -1497,7 +1597,7 @@ namespace System.Management.Automation.Language
                     }
                     else
                     {
-                        // Otherwise, the edit distance is the minumum
+                        // Otherwise, the edit distance is the minimum
                         // of doing an addition of a character, a deletion
                         // of a character, or a substitution of a character
                         distanceMap[row, column] = Math.Min(
@@ -2028,7 +2128,13 @@ namespace System.Management.Automation.Language
                     if (c1 != 0)
                     {
                         SkipChar();
-                        c = Backtick(c1);
+                        c = Backtick(c1, out char surrogateCharacter);
+                        if (surrogateCharacter != s_invalidChar)
+                        {
+                            sb.Append(c).Append(surrogateCharacter);
+                            formatSb.Append(c).Append(surrogateCharacter);
+                            continue;
+                        }
                     }
                 }
                 if (c == '{' || c == '}')
@@ -2115,7 +2221,7 @@ namespace System.Management.Automation.Language
 
         private bool ScanAfterHereStringHeader(string header)
         {
-            // On entry, we've see the header.  We allow whitepace and require a newline before the actual string starts
+            // On entry, we've see the header.  We allow whitespace and require a newline before the actual string starts
             int headerOffset = _currentIndex - 2;
 
             char c;
@@ -2337,7 +2443,13 @@ namespace System.Management.Automation.Language
                         if (c1 != 0)
                         {
                             SkipChar();
-                            c = Backtick(c1);
+                            c = Backtick(c1, out char surrogateCharacter);
+                            if (surrogateCharacter != s_invalidChar)
+                            {
+                                sb.Append(c).Append(surrogateCharacter);
+                                formatSb.Append(c).Append(surrogateCharacter);
+                                continue;
+                            }
                         }
                     }
                     if (c == '{' || c == '}')
@@ -2406,7 +2518,12 @@ namespace System.Management.Automation.Language
                                     UngetChar();
                                     goto end_braced_variable_scan;
                                 }
-                                c = Backtick(c1);
+                                c = Backtick(c1, out char surrogateCharacter);
+                                if (surrogateCharacter != s_invalidChar)
+                                {
+                                    sb.Append(c).Append(surrogateCharacter);
+                                    continue;
+                                }
                                 break;
                             }
                         case '"':
@@ -2609,6 +2726,8 @@ namespace System.Management.Automation.Language
                         case '.':
                         case '[':
                             // Something like $a.b or $a[1].
+                        case '=':
+                            // Something like $a=
                             UngetChar();
                             scanning = false;
                             break;
@@ -2842,6 +2961,17 @@ namespace System.Management.Automation.Language
             return ScanGenericToken(sb);
         }
 
+        private Token ScanGenericToken(char firstChar, char surrogateCharacter)
+        {
+            var sb = GetStringBuilder();
+            sb.Append(firstChar);
+            if (surrogateCharacter != s_invalidChar)
+            {
+                sb.Append(surrogateCharacter);
+            }
+            return ScanGenericToken(sb);
+        }
+
         private Token ScanGenericToken(StringBuilder sb)
         {
             // On entry, we've already scanned an unknown number of characters
@@ -2882,7 +3012,13 @@ namespace System.Management.Automation.Language
                     if (c1 != 0)
                     {
                         SkipChar();
-                        c = Backtick(c1);
+                        c = Backtick(c1, out char surrogateCharacter);
+                        if (surrogateCharacter != s_invalidChar)
+                        {
+                            sb.Append(c).Append(surrogateCharacter);
+                            formatSb.Append(c).Append(surrogateCharacter);
+                            continue;
+                        }
                     }
                 }
                 else if (c.IsSingleQuote())
@@ -3117,9 +3253,8 @@ namespace System.Management.Automation.Language
                     }
                     return true;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    CommandProcessorBase.CheckForSevereException(e);
                 }
             }
 
@@ -3394,7 +3529,7 @@ namespace System.Management.Automation.Language
         internal Token GetLBracket()
         {
             // We know we want a '[' token or no token.  We are in a context where we expect an attribute/type constraint
-            // and allow any whitespace/commments before the '[', but nothing else (the caller has already skipped newlines
+            // and allow any whitespace/comments before the '[', but nothing else (the caller has already skipped newlines
             // if appropriate.)  This is handled specially because in command mode, a generic token may begin with '[', but
             // we don't want anything more than the '['.
 
@@ -3513,7 +3648,7 @@ namespace System.Management.Automation.Language
             {
                 c = GetChar();
 
-                if (c.IsIndentifierFollow())
+                if (c.IsIdentifierFollow())
                 {
                     sb.Append(c);
                 }
@@ -3677,7 +3812,7 @@ namespace System.Management.Automation.Language
             var sb = GetStringBuilder();
 
             char c = GetChar();
-            if (!c.IsIndentifierStart())
+            if (!c.IsIdentifierStart())
             {
                 // Must be a generic token then
                 sb.Append(':');
@@ -3690,7 +3825,7 @@ namespace System.Management.Automation.Language
                 return ScanGenericToken(sb);
             }
 
-            while (c.IsIndentifierFollow())
+            while (c.IsIdentifierFollow())
             {
                 sb.Append(c);
                 c = GetChar();
@@ -3799,7 +3934,8 @@ namespace System.Management.Automation.Language
                         goto again;
                     }
 
-                    return ScanGenericToken(Backtick(c1));
+                    c = Backtick(c1, out char surrogateCharacter);
+                    return ScanGenericToken(c, surrogateCharacter);
 
                 case '=':
                     return CheckOperatorInCommandMode(c, TokenKind.Equals);
@@ -4057,7 +4193,7 @@ namespace System.Management.Automation.Language
                 case '!':
                     c1 = PeekChar();
                     if ((InCommandMode() && !c1.ForceStartNewToken()) ||
-                        (InExpressionMode() && c1.IsIndentifierStart()))
+                        (InExpressionMode() && c1.IsIdentifierStart()))
                     {
                         return ScanGenericToken(c);
                     }
@@ -4070,7 +4206,7 @@ namespace System.Management.Automation.Language
 
                         // check if the next token is actually a number
                         string strNum = ScanNumberHelper(c, out hex, out real, out suffix, out multiplier);
-                        // rescan characters after the check 
+                        // rescan characters after the check
                         _currentIndex = _tokenStart;
                         c = GetChar();
 

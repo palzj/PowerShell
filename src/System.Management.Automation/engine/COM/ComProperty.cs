@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Runtime.InteropServices;
@@ -12,7 +12,7 @@ using COM = System.Runtime.InteropServices.ComTypes;
 namespace System.Management.Automation
 {
     /// <summary>
-    /// Defines a property in the  COM object.
+    /// Defines a property in the COM object.
     /// </summary>
     internal class ComProperty
     {
@@ -59,7 +59,7 @@ namespace System.Management.Automation
                     try
                     {
                         _typeInfo.GetFuncDesc(GetFuncDescIndex(), out pFuncDesc);
-                        COM.FUNCDESC funcdesc = ClrFacade.PtrToStructure<COM.FUNCDESC>(pFuncDesc);
+                        COM.FUNCDESC funcdesc = Marshal.PtrToStructure<COM.FUNCDESC>(pFuncDesc);
 
                         if (IsGettable)
                         {
@@ -114,7 +114,7 @@ namespace System.Management.Automation
 
 
         /// <summary>
-        /// Returns the number of parameters in this property. 
+        /// Returns the number of parameters in this property.
         /// This is applicable only for parameterized properties.
         /// </summary>
         internal int ParamCount
@@ -155,9 +155,6 @@ namespace System.Management.Automation
             }
             catch (TargetInvocationException te)
             {
-                //First check if this is a severe exception.
-                CommandProcessorBase.CheckForSevereException(te.InnerException);
-
                 var innerCom = te.InnerException as COMException;
                 if (innerCom == null || innerCom.HResult != ComUtil.DISP_E_MEMBERNOTFOUND)
                 {
@@ -202,9 +199,6 @@ namespace System.Management.Automation
             }
             catch (TargetInvocationException te)
             {
-                //First check if this is a severe exception.
-                CommandProcessorBase.CheckForSevereException(te.InnerException);
-
                 var innerCom = te.InnerException as COMException;
                 if (innerCom == null || innerCom.HResult != ComUtil.DISP_E_MEMBERNOTFOUND)
                 {
@@ -241,9 +235,6 @@ namespace System.Management.Automation
             }
             catch (TargetInvocationException te)
             {
-                //First check if this is a severe exception.
-                CommandProcessorBase.CheckForSevereException(te.InnerException);
-
                 var innerCom = te.InnerException as COMException;
                 if (innerCom == null || innerCom.HResult != ComUtil.DISP_E_MEMBERNOTFOUND)
                 {
@@ -292,9 +283,6 @@ namespace System.Management.Automation
             }
             catch (TargetInvocationException te)
             {
-                //First check if this is a severe exception.
-                CommandProcessorBase.CheckForSevereException(te.InnerException);
-
                 var innerCom = te.InnerException as COMException;
                 if (innerCom == null || innerCom.HResult != ComUtil.DISP_E_MEMBERNOTFOUND)
                 {
@@ -359,7 +347,7 @@ namespace System.Management.Automation
             try
             {
                 _typeInfo.GetFuncDesc(GetFuncDescIndex(), out pFuncDesc);
-                COM.FUNCDESC funcdesc = ClrFacade.PtrToStructure<COM.FUNCDESC>(pFuncDesc);
+                COM.FUNCDESC funcdesc = Marshal.PtrToStructure<COM.FUNCDESC>(pFuncDesc);
 
                 return ComUtil.GetMethodSignatureFromFuncDesc(_typeInfo, funcdesc, !IsGettable);
             }

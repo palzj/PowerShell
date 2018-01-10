@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -10,10 +10,6 @@ using System.Management.Automation;
 using System.Management.Automation.Language;
 using System.Reflection;
 using System.Linq;
-#if CORECLR
-using System.Runtime.InteropServices;
-using Microsoft.PowerShell.Internal;
-#endif
 
 namespace Microsoft.PowerShell
 {
@@ -120,7 +116,7 @@ namespace Microsoft.PowerShell
 
         /// <summary>
         /// When displaying possible completions, either display
-        /// tooltips or dipslay just the completions.
+        /// tooltips or display just the completions.
         /// </summary>
         public const bool DefaultShowToolTips = false;
 
@@ -381,7 +377,7 @@ namespace Microsoft.PowerShell
         }
     }
 
-    [Cmdlet("Get", "PSReadlineOption", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=528808")]
+    [Cmdlet(VerbsCommon.Get, "PSReadlineOption", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=528808")]
     [OutputType(typeof(PSConsoleReadlineOptions))]
     public class GetPSReadlineOption : PSCmdlet
     {
@@ -392,7 +388,7 @@ namespace Microsoft.PowerShell
         }
     }
 
-    [Cmdlet("Set", "PSReadlineOption", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=528811")]
+    [Cmdlet(VerbsCommon.Set, "PSReadlineOption", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=528811")]
     public class SetPSReadlineOption : PSCmdlet
     {
         [Parameter(ParameterSetName = "OptionsSet")]
@@ -672,7 +668,7 @@ namespace Microsoft.PowerShell
         }
     }
 
-    [Cmdlet("Set", "PSReadlineKeyHandler", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=528810")]
+    [Cmdlet(VerbsCommon.Set, "PSReadlineKeyHandler", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=528810")]
     public class SetPSReadlineKeyHandlerCommand : ChangePSReadlineKeyHandlerCommandBase, IDynamicParameters
     {
         [Parameter(Position = 1, Mandatory = true, ParameterSetName = "ScriptBlock")]
@@ -697,11 +693,18 @@ namespace Microsoft.PowerShell
                 if (ParameterSetName.Equals(FunctionParameterSet))
                 {
                     var function = (string)_dynamicParameters.Value[FunctionParameter].Value;
-                    MethodInfo mi = typeof (PSConsoleReadLine).GetMethod(function);
+                    MethodInfo mi = typeof (PSConsoleReadLine).GetMethod(function,
+                        BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase);
+
+                    string functionName = mi.Name;
+
                     var keyHandler = (Action<ConsoleKeyInfo?, object>)
                         mi.CreateDelegate(typeof (Action<ConsoleKeyInfo?, object>));
-                    BriefDescription = function;
-                    PSConsoleReadLine.SetKeyHandler(Chord, keyHandler, BriefDescription, Description);
+
+                    string longDescription = PSReadLineResources.ResourceManager.GetString(
+                        functionName + "Description");
+
+                    PSConsoleReadLine.SetKeyHandler(Chord, keyHandler, functionName, longDescription);
                 }
                 else
                 {
@@ -747,7 +750,7 @@ namespace Microsoft.PowerShell
         }
     }
 
-    [Cmdlet("Get", "PSReadlineKeyHandler", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=528807")]
+    [Cmdlet(VerbsCommon.Get, "PSReadlineKeyHandler", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=528807")]
     [OutputType(typeof(KeyHandler))]
     public class GetKeyHandlerCommand : PSCmdlet
     {
@@ -791,7 +794,7 @@ namespace Microsoft.PowerShell
         }
     }
 
-    [Cmdlet("Remove", "PSReadlineKeyHandler", HelpUri = "http://go.microsoft.com/fwlink/?LinkId=528809")]
+    [Cmdlet(VerbsCommon.Remove, "PSReadlineKeyHandler", HelpUri = "https://go.microsoft.com/fwlink/?LinkId=528809")]
     public class RemoveKeyHandlerCommand : ChangePSReadlineKeyHandlerCommandBase
     {
         [ExcludeFromCodeCoverage]

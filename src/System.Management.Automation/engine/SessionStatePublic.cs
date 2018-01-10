@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.Generic;
@@ -26,7 +26,7 @@ namespace System.Management.Automation
         /// <exception cref="ArgumentNullException">
         /// If <paramref name="sessionState"/> is null.
         /// </exception>
-        /// 
+        ///
         internal SessionState(SessionStateInternal sessionState)
         {
             if (sessionState == null)
@@ -35,12 +35,6 @@ namespace System.Management.Automation
             }
 
             _sessionState = sessionState;
-
-#if RELATIONSHIP_SUPPORTED
-    // 2004/11/24-JeffJon - Relationships have been removed from the Exchange release
-
-            this.relationship = new RelationshipProviderManagementIntrinsics (sessionState);
-#endif
         } // SessionState
 
         /// <summary>
@@ -128,7 +122,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Get/set constraints for this execution environemnt
+        /// Get/set constraints for this execution environment
         /// </summary>
         public PSLanguageMode LanguageMode
         {
@@ -154,7 +148,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Public proxy for the list of appications that are allowed to be run. If the name "*"
+        /// Public proxy for the list of applications that are allowed to be run. If the name "*"
         /// is in the list, then all applications can be run. (This is the default.)
         /// </summary>
         public List<string> Applications
@@ -187,7 +181,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Utility to check the visiblity of an object based on the current
+        /// Utility to check the visibility of an object based on the current
         /// command origin. If the object implements IHasSessionStateEntryVisibility
         /// then the check will be made. If the check fails, then an exception will be thrown...
         /// </summary>
@@ -214,9 +208,7 @@ namespace System.Management.Automation
                 CommandInfo cinfo = valueToCheck as CommandInfo;
                 if (cinfo != null)
                 {
-                    string commandName = null;
-                    if (cinfo != null)
-                        commandName = cinfo.Name;
+                    string commandName = cinfo.Name;
                     if (commandName != null)
                     {
                         // If we have a name, use it in the error message
@@ -305,28 +297,6 @@ namespace System.Management.Automation
             return (commandInfo.Visibility == SessionStateEntryVisibility.Public);
         }
 
-#if RELATIONSHIP_SUPPORTED
-        // 2004/11/24-JeffJon - Relationships have been removed from the Exchange release
-
-        /// <summary>
-        /// The state APIs to access relationship providers in session state.
-        /// </summary>
-        /// 
-        public RelationshipProviderManagementIntrinsics Relationship
-        {
-            get
-            {
-                using (tracer.TraceProperty())
-                {
-                    Dbg.Diagnostics.Assert (
-                        relationship != null,
-                        "The only constructor for this class should always set the relationship field");
-
-                    return relationship;
-                } // TraceProperty
-            } // get
-        } // RelationshipProvider
-#endif
         #endregion Public methods
 
         #region Internal methods
@@ -334,7 +304,7 @@ namespace System.Management.Automation
         /// <summary>
         /// Gets a reference to the "real" session state object instead of the facade
         /// </summary>
-        /// 
+        ///
         internal SessionStateInternal Internal
         {
             get { return _sessionState; }
@@ -349,17 +319,11 @@ namespace System.Management.Automation
         private PathIntrinsics _path;
         private PSVariableIntrinsics _variable;
 
-#if RELATIONSHIP_SUPPORTED
-        // 2004/11/24-JeffJon - Relationships have been removed from the Exchange release
-
-        private RelationshipProviderManagementIntrinsics relationship = null;
-#endif
-
         #endregion private data
     } // SessionStatePublic
 
     /// <summary>
-    /// This enum defines the visiblity of execution environment elements...
+    /// This enum defines the visibility of execution environment elements...
     /// </summary>
     public enum SessionStateEntryVisibility
     {
@@ -386,7 +350,7 @@ namespace System.Management.Automation
     public enum PSLanguageMode
     {
         /// <summary>
-        /// All PowerShell langugage elements are available
+        /// All PowerShell language elements are available
         /// </summary>
         FullLanguage = 0,
 

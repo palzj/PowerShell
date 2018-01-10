@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Management.Automation;
 using System.Net;
+using System.Net.Mail;
 using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Security;
@@ -18,14 +19,7 @@ using Microsoft.Management.Infrastructure;
 using Dbg = System.Management.Automation.Diagnostics;
 using System.Runtime.InteropServices;
 
-#if CORECLR
-// Use stub for MailAddress.
-using Microsoft.PowerShell.CoreClr.Stubs;
-#else
-using System.Net.Mail;
-#endif
-
-// TODO/FIXME: Move this class to src/cimSupport/other directory (to map to the namespace it lives in and functionality it implements [cmdletization idependent])
+// TODO/FIXME: Move this class to src/cimSupport/other directory (to map to the namespace it lives in and functionality it implements [cmdletization independent])
 
 namespace Microsoft.PowerShell.Cim
 {
@@ -42,11 +36,9 @@ namespace Microsoft.PowerShell.Cim
             {
                 _string = new string('\0', numberOfCharacters);
 
-#if !CORECLR    // String.IsInterned Not In CoreCLR
                 Debug.Assert(
                     string.IsInterned(_string) == null,
                     "We will overwrite string contents - we can't / shouldn't do this for interned strings.");
-#endif
 
                 /* The string is pinned (while still being filled with insignificant data)
                  * to prevent copying of sensitive data by garbage collection.
@@ -86,7 +78,7 @@ namespace Microsoft.PowerShell.Cim
 
             internal void Copy(SecureString source, int offset)
             {
-                IntPtr plainTextString = ClrFacade.SecureStringToCoTaskMemUnicode(source);
+                IntPtr plainTextString = Marshal.SecureStringToCoTaskMemUnicode(source);
                 try
                 {
                     unsafe
@@ -402,7 +394,6 @@ namespace Microsoft.PowerShell.Cim
                                                                      }
                                                                      catch (Exception e)
                                                                      {
-                                                                         CommandProcessor.CheckForSevereException(e);
                                                                          throw CimValueConverter.GetInvalidCastException(
                                                                              e,
                                                                              "InvalidCimToDotNetCast",
@@ -615,7 +606,7 @@ namespace Microsoft.PowerShell.Cim
             Dbg.Assert(arrayType != null, "Caller should verify arrayType != null");
             Dbg.Assert(arrayType.IsArray, "Caller should verify arrayType.IsArray");
 
-            // MOF syntax from Appendix A of DSP0004 doesn't allow expressing 
+            // MOF syntax from Appendix A of DSP0004 doesn't allow expressing
             // of 1) nested arrays and 2) multi-dimensional arrays
             // (see production for "array" and how this production is used in
             //  other productions like "propertyDeclaration" or "parameter")

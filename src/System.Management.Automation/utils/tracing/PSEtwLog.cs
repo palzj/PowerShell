@@ -1,6 +1,5 @@
-#if !UNIX
 //
-//    Copyright (C) Microsoft.  All rights reserved.
+//    Copyright (c) Microsoft Corporation. All rights reserved.
 //
 using System.Globalization;
 using System.Management.Automation.Internal;
@@ -13,14 +12,22 @@ namespace System.Management.Automation.Tracing
     /// </summary>
     internal static class PSEtwLog
     {
+#if UNIX
+        private static PSSysLogProvider provider;
+#else
         private static PSEtwLogProvider provider;
+#endif
 
         /// <summary>
         /// Class constructor
         /// </summary>
         static PSEtwLog()
         {
+#if UNIX
+            provider = new PSSysLogProvider();
+#else
             provider = new PSEtwLogProvider();
+#endif
         }
 
         /// <summary>
@@ -30,7 +37,7 @@ namespace System.Management.Automation.Tracing
         /// <param name="eventId"></param>
         /// <param name="exception"></param>
         /// <param name="additionalInfo"></param>
-        /// 
+        ///
         internal static void LogEngineHealthEvent(LogContext logContext, int eventId, Exception exception, Dictionary<String, String> additionalInfo)
         {
             provider.LogEngineHealthEvent(logContext, eventId, exception, additionalInfo);
@@ -42,7 +49,7 @@ namespace System.Management.Automation.Tracing
         /// <param name="logContext"></param>
         /// <param name="newState"></param>
         /// <param name="previousState"></param>
-        /// 
+        ///
         internal static void LogEngineLifecycleEvent(LogContext logContext, EngineState newState, EngineState previousState)
         {
             provider.LogEngineLifecycleEvent(logContext, newState, previousState);
@@ -63,7 +70,7 @@ namespace System.Management.Automation.Tracing
         /// </summary>
         /// <param name="logContext"></param>
         /// <param name="newState"></param>
-        /// 
+        ///
         internal static void LogCommandLifecycleEvent(LogContext logContext, CommandState newState)
         {
             provider.LogCommandLifecycleEvent(() => logContext, newState);
@@ -96,7 +103,7 @@ namespace System.Management.Automation.Tracing
         /// <param name="logContext"></param>
         /// <param name="providerName"></param>
         /// <param name="newState"></param>
-        /// 
+        ///
         internal static void LogProviderLifecycleEvent(LogContext logContext, string providerName, ProviderState newState)
         {
             provider.LogProviderLifecycleEvent(logContext, providerName, newState);
@@ -109,7 +116,7 @@ namespace System.Management.Automation.Tracing
         /// <param name="variableName"></param>
         /// <param name="value"></param>
         /// <param name="previousValue"></param>
-        /// 
+        ///
         internal static void LogSettingsEvent(LogContext logContext, string variableName, string value, string previousValue)
         {
             provider.LogSettingsEvent(logContext, variableName, value, previousValue);
@@ -311,6 +318,3 @@ namespace System.Management.Automation.Tracing
         }
     }
 }
-
-
-#endif

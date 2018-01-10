@@ -10,7 +10,7 @@ Author = 'Microsoft Corporation'
 
 CompanyName = 'Microsoft Corporation'
 
-Copyright = '© Microsoft Corporation. All rights reserved.'
+Copyright = 'Copyright (c) Microsoft Corporation. All rights reserved.'
 
 PowerShellVersion = '3.0'
 
@@ -20,8 +20,8 @@ TypesToProcess = 'PSScheduledJob.types.ps1xml'
 
 FormatsToProcess="PSScheduledJob.Format.ps1xml"
 
-CmdletsToExport = 'New-JobTrigger', 'Add-JobTrigger', 'Remove-JobTrigger', 
-               'Get-JobTrigger', 'Set-JobTrigger', 'Enable-JobTrigger', 
+CmdletsToExport = 'New-JobTrigger', 'Add-JobTrigger', 'Remove-JobTrigger',
+               'Get-JobTrigger', 'Set-JobTrigger', 'Enable-JobTrigger',
                'Disable-JobTrigger', 'New-ScheduledJobOption', 'Get-ScheduledJobOption',
                'Set-ScheduledJobOption', 'Register-ScheduledJob', 'Get-ScheduledJob',
                'Set-ScheduledJob', 'Unregister-ScheduledJob', 'Enable-ScheduledJob',
@@ -29,5 +29,5 @@ CmdletsToExport = 'New-JobTrigger', 'Add-JobTrigger', 'Remove-JobTrigger',
 AliasesToExport = @()
 FunctionsToExport = @()
 
-HelpInfoURI = 'http://go.microsoft.com/fwlink/?linkid=390816'
+HelpInfoURI = 'https://go.microsoft.com/fwlink/?linkid=390816'
 }

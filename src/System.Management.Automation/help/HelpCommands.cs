@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -14,13 +14,17 @@ using System.Globalization;
 using System.Management.Automation.Internal;
 using System.Management.Automation.Help;
 using System.Runtime.InteropServices;
+using System.IO;
+#if !UNIX
+using Microsoft.Win32;
+#endif
 
 namespace Microsoft.PowerShell.Commands
 {
     /// <summary>
     /// This class implements get-help command
     /// </summary>
-    [Cmdlet(VerbsCommon.Get, "Help", DefaultParameterSetName = "AllUsersView", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113316")]
+    [Cmdlet(VerbsCommon.Get, "Help", DefaultParameterSetName = "AllUsersView", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113316")]
     public sealed class GetHelpCommand : PSCmdlet
     {
         /// <summary>
@@ -47,6 +51,7 @@ namespace Microsoft.PowerShell.Commands
         /// Target to search for help
         /// </summary>
         [Parameter(Position = 0, ValueFromPipelineByPropertyName = true)]
+        [ValidateNotNullOrEmpty()]
         public string Name { get; set; } = "";
 
         /// <summary>
@@ -92,13 +97,13 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         /// <remarks>
         /// Currently we support following views:
-        /// 
+        ///
         /// 1. Reminder (Default - Experienced User)
         /// 2. Detailed (Beginner - Beginning User)
         /// 3. Full     (All Users)
-        /// 4. Examples 
-        /// 5. Parameters 
-        /// 
+        /// 4. Examples
+        /// 5. Parameters
+        ///
         /// Currently we support these views only for Cmdlets.
         /// A SnapIn developer can however change these views.
         /// </remarks>
@@ -119,13 +124,13 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         /// <remarks>
         /// Currently we support following views:
-        /// 
+        ///
         /// 1. Reminder (Default - Experienced User)
         /// 2. Detailed (Beginner - Beginning User)
         /// 3. Full     (All Users)
-        /// 4. Examples 
-        /// 5. Parameters 
-        /// 
+        /// 4. Examples
+        /// 5. Parameters
+        ///
         /// Currently we support these views only for Cmdlets.
         /// A SnapIn developer can however change these views.
         /// </remarks>
@@ -146,12 +151,12 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         /// <remarks>
         /// Currently we support following views:
-        /// 
+        ///
         /// 1. Reminder (Default - Experienced User)
         /// 2. Detailed (Beginner - Beginning User)
         /// 3. Full     (All Users)
-        /// 4. Examples 
-        /// 
+        /// 4. Examples
+        ///
         /// Currently we support these views only for Cmdlets.
         /// A SnapIn developer can however change these views.
         /// </remarks>
@@ -199,37 +204,13 @@ namespace Microsoft.PowerShell.Commands
         }
         private bool _showOnlineHelp;
 
-        private bool _showWindow;
-        /// <summary>
-        /// Gets and sets a value indicatuing whether the help should be displayed in a separate window
-        /// </summary>
-        [Parameter(ParameterSetName = "ShowWindow", Mandatory = true)]
-        public SwitchParameter ShowWindow
-        {
-            get
-            {
-                return _showWindow;
-            }
-
-            set
-            {
-                _showWindow = value;
-                if (_showWindow)
-                {
-                    VerifyParameterForbiddenInRemoteRunspace(this, "ShowWindow");
-                }
-            }
-        }
-
         // The following variable controls the view.
         private HelpView _viewTokenToAdd = HelpView.Default;
 
-#if !CORECLR
-        private GraphicalHostReflectionWrapper graphicalHostReflectionWrapper;
-#endif
-
         private readonly Stopwatch _timer = new Stopwatch();
+#if LEGACYTELEMETRY
         private bool _updatedHelp;
+#endif
 
         #endregion
 
@@ -247,7 +228,9 @@ namespace Microsoft.PowerShell.Commands
                 if (ShouldContinue(HelpDisplayStrings.UpdateHelpPromptBody, HelpDisplayStrings.UpdateHelpPromptTitle))
                 {
                     System.Management.Automation.PowerShell.Create(RunspaceMode.CurrentRunspace).AddCommand("Update-Help").Invoke();
+#if LEGACYTELEMETRY
                     _updatedHelp = true;
+#endif
                 }
 
                 UpdatableHelpSystem.SetDisablePromptToUpdateHelp();
@@ -261,12 +244,6 @@ namespace Microsoft.PowerShell.Commands
         {
             try
             {
-#if !CORECLR
-                if (this.ShowWindow)
-                {
-                    this.graphicalHostReflectionWrapper = GraphicalHostReflectionWrapper.GetGraphicalHostReflectionWrapper(this, "Microsoft.PowerShell.Commands.Internal.HelpWindowHelper");
-                }
-#endif
                 this.Context.HelpSystem.OnProgress += new HelpSystem.HelpProgressHandler(HelpSystem_OnProgress);
 
                 bool failed = false;
@@ -327,9 +304,10 @@ namespace Microsoft.PowerShell.Commands
 
                 _timer.Stop();
 
+#if LEGACYTELEMETRY
                 if (!string.IsNullOrEmpty(Name))
                     Microsoft.PowerShell.Telemetry.Internal.TelemetryAPI.ReportGetHelpTelemetry(Name, countOfHelpInfos, _timer.ElapsedMilliseconds, _updatedHelp);
-
+#endif
                 // Write full help as there is only one help info object
                 if (1 == countOfHelpInfos)
                 {
@@ -344,8 +322,8 @@ namespace Microsoft.PowerShell.Commands
                 if (((countOfHelpInfos == 0) && (!WildcardPattern.ContainsWildcardCharacters(helpRequest.Target)))
                     || this.Context.HelpSystem.VerboseHelpErrors)
                 {
-                    // Check if there is any error happened. If yes, 
-                    // pipe out errors. 
+                    // Check if there is any error happened. If yes,
+                    // pipe out errors.
                     if (this.Context.HelpSystem.LastErrors.Count > 0)
                     {
                         foreach (ErrorRecord errorRecord in this.Context.HelpSystem.LastErrors)
@@ -395,9 +373,9 @@ namespace Microsoft.PowerShell.Commands
 
         /// <summary>
         /// Change <paramref name="originalHelpObject"/> as per user request.
-        /// 
-        /// This method creates a new type to the existing typenames 
-        /// depending on Detailed,Full,Example parameteres and adds this 
+        ///
+        /// This method creates a new type to the existing typenames
+        /// depending on Detailed,Full,Example parameters and adds this
         /// new type(s) to the top of the list.
         /// </summary>
         /// <param name="originalHelpObject">Full help object to transform.</param>
@@ -416,7 +394,7 @@ namespace Microsoft.PowerShell.Commands
 
             string tokenToAdd = _viewTokenToAdd.ToString();
             // We are changing the types without modifying the original object.
-            // The contract between help command and helpsystem does not 
+            // The contract between help command and helpsystem does not
             // allow us to modify returned help objects.
             PSObject objectToReturn = originalHelpObject.Copy();
             objectToReturn.TypeNames.Clear();
@@ -456,7 +434,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// Gets the paramater info for patterns identified Parameter property.
+        /// Gets the parameter info for patterns identified Parameter property.
         /// Writes the parameter info(s) to the output stream. An error is thrown
         /// if a parameter with a given pattern is not found.
         /// </summary>
@@ -558,12 +536,6 @@ namespace Microsoft.PowerShell.Commands
                         throw PSTraceSource.NewInvalidOperationException(HelpErrors.NoURIFound);
                     }
                 }
-                else if (showFullHelp && ShowWindow)
-                {
-#if !CORECLR
-                    graphicalHostReflectionWrapper.CallStaticMethod("ShowHelpWindow", helpInfo.FullHelp, this);
-#endif
-                }
                 else
                 {
                     // show inline help
@@ -615,21 +587,37 @@ namespace Microsoft.PowerShell.Commands
                     "https");
             }
 
+            // we use this test hook is to avoid actually calling out to another process
+            if (InternalTestHooks.BypassOnlineHelpRetrieval)
+            {
+                this.WriteObject(string.Format(CultureInfo.InvariantCulture, HelpDisplayStrings.OnlineHelpUri, uriToLaunch.OriginalString));
+                return;
+            }
+
             Exception exception = null;
+            bool wrapCaughtException = true;
             try
             {
                 this.WriteVerbose(string.Format(CultureInfo.InvariantCulture, HelpDisplayStrings.OnlineHelpUri, uriToLaunch.OriginalString));
                 System.Diagnostics.Process browserProcess = new System.Diagnostics.Process();
-
 #if UNIX
-                browserProcess.StartInfo.FileName = Platform.IsLinux ? "xdg-open" : /* OS X */ "open";
+                browserProcess.StartInfo.FileName = Platform.IsLinux ? "xdg-open" : /* macOS */ "open";
                 browserProcess.StartInfo.Arguments = uriToLaunch.OriginalString;
                 browserProcess.Start();
-#elif CORECLR
-                throw new PlatformNotSupportedException();
 #else
-                browserProcess.StartInfo.FileName = uriToLaunch.OriginalString;
-                browserProcess.Start();
+                if (Platform.IsNanoServer || Platform.IsIoT)
+                {
+                    // We cannot open the URL in browser on headless SKUs.
+                    wrapCaughtException = false;
+                    exception = PSTraceSource.NewInvalidOperationException(HelpErrors.CannotLaunchURI, uriToLaunch.OriginalString);
+                }
+                else
+                {
+                    // We can call ShellExecute directly on Full Windows.
+                    browserProcess.StartInfo.FileName = uriToLaunch.OriginalString;
+                    browserProcess.StartInfo.UseShellExecute = true;
+                    browserProcess.Start();
+                }
 #endif
             }
             catch (InvalidOperationException ioe)
@@ -643,7 +631,10 @@ namespace Microsoft.PowerShell.Commands
 
             if (null != exception)
             {
-                throw PSTraceSource.NewInvalidOperationException(exception, HelpErrors.CannotLaunchURI, uriToLaunch.OriginalString);
+                if (wrapCaughtException)
+                    throw PSTraceSource.NewInvalidOperationException(exception, HelpErrors.CannotLaunchURI, uriToLaunch.OriginalString);
+                else
+                    throw exception;
             }
         }
 
@@ -658,22 +649,13 @@ namespace Microsoft.PowerShell.Commands
             WriteProgress(record);
         }
 
-#if !CORECLR
-        [DllImport("wininet.dll")]
-        private static extern bool InternetGetConnectedState(out int desc, int reserved);
-#endif
         /// <summary>
         /// Checks if we can connect to the internet
         /// </summary>
         /// <returns></returns>
         private bool HasInternetConnection()
         {
-#if CORECLR
             return true; // TODO:CORECLR wininet.dll is not present on NanoServer
-#else
-            int unused;
-            return InternetGetConnectedState(out unused, 0);
-#endif
         }
 
         #region Helper methods for verification of parameters against NoLanguage mode

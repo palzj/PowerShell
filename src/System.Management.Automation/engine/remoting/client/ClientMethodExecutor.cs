@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Management.Automation.Host;
@@ -118,9 +118,7 @@ namespace System.Management.Automation.Remoting
             // Cmdlet case: queue up the executor in the pipeline stream.
             if (isMethodExecutorStreamEnabled)
             {
-                Dbg.Assert(!isMethodExecutorStreamEnabled ||
-                           (isMethodExecutorStreamEnabled && methodExecutorStream != null),
-                           "method executor stream can't be null when enabled");
+                Dbg.Assert(methodExecutorStream != null, "method executor stream can't be null when enabled");
                 methodExecutorStream.Write(methodExecutor);
             }
 
@@ -168,10 +166,9 @@ namespace System.Management.Automation.Remoting
                             _clientHost.UI.WriteErrorLine(errorRecord.ToString());
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         // Catch-all OK, 3rd party callout.
-                        CommandProcessorBase.CheckForSevereException(e);
                     }
                 };
             }
@@ -231,7 +228,6 @@ namespace System.Management.Automation.Remoting
             catch (Exception exception)
             {
                 // Catch-all OK, 3rd party callout.
-                CommandProcessorBase.CheckForSevereException(exception);
 
                 // Extract inner exception.
                 if (exception.InnerException != null)

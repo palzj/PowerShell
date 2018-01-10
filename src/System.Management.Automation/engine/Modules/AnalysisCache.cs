@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections;
@@ -19,15 +19,15 @@ namespace System.Management.Automation
 {
     /// <summary>
     /// Class to manage the caching of analysis data.
-    /// 
+    ///
     /// For performance, module command caching is flattened after discovery. Many modules have nested
     /// modules that can only be resolved at runtime - for example,
     /// script modules that declare: $env:PATH += "; $psScriptRoot". When
     /// doing initial analysis, we include these in 'ExportedCommands'.
-    /// 
+    ///
     /// Changes to these type of modules will not be re-analyzed, unless the user re-imports the module,
     /// or runs Get-Module -List.
-    /// 
+    ///
     /// </summary>
     internal class AnalysisCache
     {
@@ -123,17 +123,17 @@ namespace System.Management.Automation
                     var hadFunctions = AddPsd1EntryToResult(result, moduleManifestProperties["FunctionsToExport"], CommandTypes.Function, ref sawWildcard);
                     var hadAliases = AddPsd1EntryToResult(result, moduleManifestProperties["AliasesToExport"], CommandTypes.Alias, ref sawWildcard);
 
-                    var analysisSuceeded = hadCmdlets && hadFunctions && hadAliases;
+                    var analysisSucceeded = hadCmdlets && hadFunctions && hadAliases;
 
-                    if (!analysisSuceeded && !sawWildcard && (hadCmdlets || hadFunctions))
+                    if (!analysisSucceeded && !sawWildcard && (hadCmdlets || hadFunctions))
                     {
                         // If we're missing CmdletsToExport, that might still be OK, but only if we have a script module.
                         // Likewise, if we're missing FunctionsToExport, that might be OK, but only if we have a binary module.
 
-                        analysisSuceeded = !CheckModulesTypesInManifestAgainstExportedCommands(moduleManifestProperties, hadCmdlets, hadFunctions, hadAliases);
+                        analysisSucceeded = !CheckModulesTypesInManifestAgainstExportedCommands(moduleManifestProperties, hadCmdlets, hadFunctions, hadAliases);
                     }
 
-                    if (analysisSuceeded)
+                    if (analysisSucceeded)
                     {
                         var moduleCacheEntry = new ModuleCacheEntry
                         {
@@ -408,7 +408,6 @@ namespace System.Management.Automation
                 ModuleIntrinsics.Tracer.WriteLine("Module analysis generated an exception: {0}", e);
 
                 // Catch-all OK, third-party call-out.
-                CommandProcessorBase.CheckForSevereException(e);
             }
             finally
             {
@@ -449,7 +448,6 @@ namespace System.Management.Automation
                 ModuleIntrinsics.Tracer.WriteLine("Module analysis generated an exception: {0}", e);
 
                 // Catch-all OK, third-party call-out.
-                CommandProcessorBase.CheckForSevereException(e);
             }
 
             return null;
@@ -474,7 +472,7 @@ namespace System.Management.Automation
             {
                 bool needToUpdate = false;
 
-                // We need to iterate and check as exportedCommands will have more item as it can have aliases as well. 
+                // We need to iterate and check as exportedCommands will have more item as it can have aliases as well.
                 exportedCommands = moduleCacheEntry.Commands;
                 foreach (var pair in realExportedCommands)
                 {
@@ -569,7 +567,6 @@ namespace System.Management.Automation
                 ModuleIntrinsics.Tracer.WriteLine("Module analysis generated an exception: {0}", e);
 
                 // Catch-all OK, third-party call-out.
-                CommandProcessorBase.CheckForSevereException(e);
             }
         }
 
@@ -621,6 +618,8 @@ namespace System.Management.Automation
 
         private int _saveCacheToDiskQueued;
 
+        private bool _saveCacheToDisk = true;
+
         public void QueueSerialization()
         {
             // We expect many modules to rapidly call for serialization.
@@ -628,21 +627,21 @@ namespace System.Management.Automation
             // after it seems like we've stopped adding stuff to write out.  This is
             // avoids blocking the pipeline thread waiting for the write to finish.
             // We want to make sure we only queue one task.
-            if (Interlocked.Increment(ref _saveCacheToDiskQueued) == 1)
+            if (_saveCacheToDisk && Interlocked.Increment(ref _saveCacheToDiskQueued) == 1)
             {
                 Task.Run(async delegate
                 {
                     // Wait a while before assuming we've finished the updates,
                     // writing the cache out in a timely matter isn't too important
                     // now anyway.
-                    await Task.Delay(10000);
+                    await Task.Delay(10000).ConfigureAwait(false);
                     int counter1, counter2;
                     do
                     {
                         // Check the counter a couple times with a delay,
                         // if it's stable, then proceed with writing.
                         counter1 = _saveCacheToDiskQueued;
-                        await Task.Delay(3000);
+                        await Task.Delay(3000).ConfigureAwait(false);
                         counter2 = _saveCacheToDiskQueued;
                     } while (counter1 != counter2);
                     Serialize(s_cacheStoreLocation);
@@ -697,6 +696,8 @@ namespace System.Management.Automation
         private void Serialize(string filename)
         {
             AnalysisCacheData fromOtherProcess = null;
+            Diagnostics.Assert(_saveCacheToDisk != false, "Serialize should never be called without going through QueueSerialization which has a check");
+
             try
             {
                 if (Utils.NativeFileExists(filename))
@@ -713,7 +714,16 @@ namespace System.Management.Automation
                     var folder = Path.GetDirectoryName(filename);
                     if (!Directory.Exists(folder))
                     {
-                        Directory.CreateDirectory(folder);
+                        try
+                        {
+                            Directory.CreateDirectory(folder);
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            // service accounts won't be able to create directory
+                            _saveCacheToDisk = false;
+                            return;
+                        }
                     }
                 }
             }
@@ -1030,7 +1040,7 @@ namespace System.Management.Automation
 #if UNIX
                 Path.Combine(Platform.SelectProductNameForDirectory(Platform.XDG_Type.CACHE), "ModuleAnalysisCache");
 #else
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Windows\PowerShell\ModuleAnalysisCache");
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\PowerShell\ModuleAnalysisCache");
 #endif
         }
     }

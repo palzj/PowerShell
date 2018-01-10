@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.Concurrent;
@@ -18,12 +18,7 @@ using System.Runtime.Serialization;
 using System.Security;
 using System.Xml;
 using Dbg = System.Diagnostics.Debug;
-#if !CORECLR
 using System.Security.Permissions;
-#else
-// Use stub for SerializableAttribute, SecurityPermissionAttribute and ISerializable related types.
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
 
 #pragma warning disable 1634, 1691 // Stops compiler from warning about unknown warnings
 
@@ -1564,7 +1559,7 @@ namespace System.Management.Automation.Runspaces
         }
 
         /// <summary>
-        /// This constructor takes a colletion of errors occurred during construction
+        /// This constructor takes a collection of errors occurred during construction
         /// time.
         /// </summary>
         /// <param name="loadErrors">
@@ -2513,7 +2508,7 @@ namespace System.Management.Automation.Runspaces
         public bool IsHidden { get; set; }
 
         /// <summary>
-        /// Indicating if the MemberSet will inherit members of the MemberSet 
+        /// Indicating if the MemberSet will inherit members of the MemberSet
         /// of the same name in the "parent" class.
         /// </summary>
         public bool InheritMembers { get; set; }
@@ -2594,7 +2589,7 @@ namespace System.Management.Automation.Runspaces
                 /*concurrency*/1, /*capacity*/5, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
-        /// points to a Hashtable from type name to type adapter 
+        /// points to a Hashtable from type name to type adapter
         /// </summary>
         private readonly ConcurrentDictionary<string, PSObject.AdapterSet> _typeAdapters =
             new ConcurrentDictionary<string, PSObject.AdapterSet>(
@@ -2604,7 +2599,7 @@ namespace System.Management.Automation.Runspaces
         internal readonly bool isShared;
         private List<string> _typeFileList;
 
-        // This holds all the type information that is in the typetable 
+        // This holds all the type information that is in the typetable
         // Holds file name if types file was used to update the types
         // Holds typename/typedata instance if typename/typedata was used to update the types
         // InitialSessionStateEntryCollection is thread safe, so no locks are needed during updates here.
@@ -2762,7 +2757,7 @@ namespace System.Management.Automation.Runspaces
         ///     - DefaultDisplayPropertySet is not an PSPropertySet
         ///     - DefaultDisplayProperty is not an PSPropertyInfo
         ///     - DefaultKeyPropertySet is not an PSPropertySet
-        /// 
+        ///
         /// SerializationMethod       InheritPropertySerializationSet   PropertySerializationSet   SerializationDepth     StringSerializationSource
         /// ---------------------     -------------------------------   ------------------------   -------------------    ---------------------------
         /// String                    must NOT be present               must NOT be present        must NOT be present    optional
@@ -2929,7 +2924,6 @@ namespace System.Management.Automation.Runspaces
             catch (TargetInvocationException e) { instanceException = e.InnerException ?? e; }
             catch (Exception e)
             {
-                CommandProcessorBase.CheckForSevereException(e);
                 instanceException = e;
             }
 #pragma warning restore 56500
@@ -3396,7 +3390,7 @@ namespace System.Management.Automation.Runspaces
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         internal TypeTable() : this(isShared: false)
         {
@@ -3416,7 +3410,7 @@ namespace System.Management.Automation.Runspaces
         /// </param>
         /// <exception cref="ArgumentException">
         /// 1. Path {0} is not fully qualified. Specify a fully qualified type file path.
-        /// </exception> 
+        /// </exception>
         /// <exception cref="TypeTableLoadException">
         /// 1. There were errors loading TypeTable. Look in the Errors property to get
         /// detailed error messages.
@@ -3446,8 +3440,7 @@ namespace System.Management.Automation.Runspaces
             string typesFilePath = string.Empty;
             string typesV3FilePath = string.Empty;
 
-            string shellId = Utils.DefaultPowerShellShellID;
-            var psHome = Utils.GetApplicationBase(shellId);
+            var psHome = Utils.DefaultPowerShellAppBase;
             if (!string.IsNullOrEmpty(psHome))
             {
                 typesFilePath = Path.Combine(psHome, "types.ps1xml");
@@ -3471,7 +3464,7 @@ namespace System.Management.Automation.Runspaces
         /// </param>
         /// <exception cref="ArgumentException">
         /// 1. Path {0} is not fully qualified. Specify a fully qualified type file path.
-        /// </exception> 
+        /// </exception>
         /// <exception cref="TypeTableLoadException">
         /// 1. There were errors loading TypeTable. Look in the Errors property to get
         /// detailed error messages.
@@ -3605,7 +3598,7 @@ namespace System.Management.Automation.Runspaces
                             continue;
                         }
                         // We are in a MemberSet InheritMembers situation, so we add the members in
-                        // typeMembers to the existing memberset. 
+                        // typeMembers to the existing memberset.
                         foreach (PSMemberInfo typeMemberAsMemberSetMember in typeMemberAsMemberSet.Members)
                         {
                             if (currentMemberAsMemberSet.Members[typeMemberAsMemberSetMember.Name] == null)
@@ -3660,9 +3653,9 @@ namespace System.Management.Automation.Runspaces
              *         strict match on the type name. The look-up should be similar to the
              *         code below, except that child classes must override base classes
              *         in the same hierarchy.
-             *         
+             *
              *         The same applies to TypeConverters
-             *         
+             *
              *         The matching for both converters and adapters should be revisited in
              *         the M3 milestone.
              */
@@ -4183,13 +4176,7 @@ namespace System.Management.Automation.Runspaces
 
             using (StringReader xmlStream = new StringReader(fileContents))
             {
-#if CORECLR
-                // In OneCore powershell, XmlTextReader is not in CoreCLR, so we have to use XmlReader.Create method
-                XmlReader reader = XmlReader.Create(xmlStream, new XmlReaderSettings { IgnoreWhitespace = true });
-#else
-                // In Full powershell, we create a XmlTextReader, so loadContext.reader is guaranteed to implement IXmlLineInfo
                 XmlReader reader = new XmlTextReader(xmlStream) { WhitespaceHandling = WhitespaceHandling.Significant };
-#endif
                 loadContext.reader = reader;
                 Update(loadContext);
                 reader.Dispose();
@@ -4225,13 +4212,12 @@ namespace System.Management.Automation.Runspaces
 
             ConcurrentBag<string> errors = new ConcurrentBag<string>();
 
-            // Always clear the consolidate memebrs - they need to be recalculated
+            // Always clear the consolidate members - they need to be recalculated
             // anytime the types are updated...
             ClearConsolidatedMembers();
 
             Update(errors, typeData, false);
             StandardMembersUpdated();
-
             // Throw exception if there are any errors
             FormatAndTypeDataHelper.ThrowExceptionOnError("ErrorsUpdatingTypes", errors, RunspaceConfigurationCategory.Types);
         }
@@ -4252,13 +4238,12 @@ namespace System.Management.Automation.Runspaces
             TypeData typeData = new TypeData(typeName);
             ConcurrentBag<string> errors = new ConcurrentBag<string>();
 
-            // Always clear the consolidate memebrs - they need to be recalculated
+            // Always clear the consolidate members - they need to be recalculated
             // anytime the types are updated...
             ClearConsolidatedMembers();
 
             Update(errors, typeData, true);
             StandardMembersUpdated();
-
             // Throw exception if there are any errors
             FormatAndTypeDataHelper.ThrowExceptionOnError("ErrorsUpdatingTypes", errors, RunspaceConfigurationCategory.Types);
         }
@@ -4275,7 +4260,7 @@ namespace System.Management.Automation.Runspaces
         /// Host passed to <paramref name="authorizationManager"/>.  Can be null if no interactive questions should be asked.
         /// </param>
         /// <exception cref="InvalidOperationException">
-        /// 1. The TypeTable cannot be updated becasue the TypeTable might have 
+        /// 1. The TypeTable cannot be updated because the TypeTable might have
         /// been created outside of the Runspace.
         /// </exception>
         internal void Update(
@@ -4322,7 +4307,7 @@ namespace System.Management.Automation.Runspaces
         /// </param>
         /// <param name="failToLoadFile">Indicate if the file cannot be loaded due to the security reason</param>
         /// <exception cref="InvalidOperationException">
-        /// 1. The TypeTable cannot be updated becasue the TypeTable might have 
+        /// 1. The TypeTable cannot be updated because the TypeTable might have
         /// been created outside of the Runspace.
         /// </exception>
         internal void Update(
@@ -4350,7 +4335,7 @@ namespace System.Management.Automation.Runspaces
         /// </param>
         /// <param name="failToLoadFile">Indicate if the file cannot be loaded due to security reason</param>
         /// <exception cref="InvalidOperationException">
-        /// 1. The TypeTable cannot be updated becasue the TypeTable might have 
+        /// 1. The TypeTable cannot be updated because the TypeTable might have
         /// been created outside of the Runspace.
         /// </exception>
         internal void Update(
@@ -4410,7 +4395,7 @@ namespace System.Management.Automation.Runspaces
             var result = false;
             var errorCount = errors.Count;
 
-            var psHome = Utils.GetApplicationBase(Utils.DefaultPowerShellShellID);
+            var psHome = Utils.DefaultPowerShellAppBase;
             if (string.Equals(Path.Combine(psHome, "types.ps1xml"), filePath, StringComparison.OrdinalIgnoreCase))
             {
                 ProcessTypeData(filePath, errors, Types_Ps1Xml.Get());

@@ -1,7 +1,7 @@
 #pragma warning disable 1634, 1691
 
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.Generic;
@@ -408,7 +408,7 @@ namespace System.Management.Automation.Internal
         }
 
         /// <summary>
-        /// Creates a new Transaction that should be managed idependently of
+        /// Creates a new Transaction that should be managed independently of
         /// any parent transactions.
         /// </summary>
         ///
@@ -418,7 +418,7 @@ namespace System.Management.Automation.Internal
         }
 
         /// <summary>
-        /// Creates a new Transaction that should be managed idependently of
+        /// Creates a new Transaction that should be managed independently of
         /// any parent transactions.
         /// </summary>
         ///

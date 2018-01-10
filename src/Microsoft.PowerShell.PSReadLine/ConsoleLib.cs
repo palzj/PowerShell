@@ -1,5 +1,5 @@
-﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+/********************************************************************++
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -19,7 +19,7 @@ namespace Microsoft.PowerShell.Internal
         public const uint MAPVK_VK_TO_VSC   = 0x00;
         public const uint MAPVK_VSC_TO_VK   = 0x01;
         public const uint MAPVK_VK_TO_CHAR  = 0x02;
-        
+
         public const byte VK_SHIFT          = 0x10;
         public const byte VK_CONTROL        = 0x11;
         public const byte VK_ALT            = 0x12;
@@ -368,8 +368,25 @@ namespace Microsoft.PowerShell.Internal
         public ushort Attributes;
     }
 
-    internal static class ConsoleKeyInfoExtension 
+    internal static class ConsoleKeyInfoExtension
     {
+#if !UNIX
+        private static bool _toUnicodeApiAvailable = true;
+
+        static ConsoleKeyInfoExtension()
+        {
+            try
+            {
+                var chars = new char[2];
+                NativeMethods.ToUnicode(13, 28, null, chars, chars.Length, 0);
+            }
+            catch (System.EntryPointNotFoundException)
+            {
+                _toUnicodeApiAvailable = false;  // api not available on NanoServer
+            }
+        }
+#endif
+
         public static string ToGestureString(this ConsoleKeyInfo key)
         {
             var mods = key.Modifiers;
@@ -386,13 +403,16 @@ namespace Microsoft.PowerShell.Internal
                 sb.Append("Alt");
             }
 
-#if UNIX
             char c = key.KeyChar;
-#else
-            // Windows cannot use KeyChar as some chords (like Ctrl+[) show up as control characters.
-            char c = ConsoleKeyChordConverter.GetCharFromConsoleKey(key.Key,
-                (mods & ConsoleModifiers.Shift) != 0 ? ConsoleModifiers.Shift : 0);
+#if !UNIX
+            if (_toUnicodeApiAvailable)
+            {
+                // Windows cannot use KeyChar as some chords (like Ctrl+[) show up as control characters.
+                c = ConsoleKeyChordConverter.GetCharFromConsoleKey(key.Key,
+                    (mods & ConsoleModifiers.Shift) != 0 ? ConsoleModifiers.Shift : 0);
+            }
 #endif
+
             if (char.IsControl(c) || char.IsWhiteSpace(c))
             {
                 if (key.Modifiers.HasFlag(ConsoleModifiers.Shift))
@@ -426,6 +446,7 @@ namespace Microsoft.PowerShell.Internal
         private bool _istmInitialized = false;
         private TEXTMETRIC _tm = new TEXTMETRIC();
         private bool _trueTypeInUse = false;
+        private static bool _getCurrentConsoleFontExApiAvailable = true;
 
         private readonly Lazy<SafeFileHandle> _outputHandle = new Lazy<SafeFileHandle>(() =>
         {
@@ -443,7 +464,7 @@ namespace Microsoft.PowerShell.Internal
             {
                 int err = Marshal.GetLastWin32Error();
                 Win32Exception innerException = new Win32Exception(err);
-                throw new Exception("Failed to retreive the input console handle.", innerException);
+                throw new Exception("Failed to retrieve the input console handle.", innerException);
             }
 
             return new SafeFileHandle(handle, true);
@@ -466,7 +487,7 @@ namespace Microsoft.PowerShell.Internal
             {
                 int err = Marshal.GetLastWin32Error();
                 Win32Exception innerException = new Win32Exception(err);
-                throw new Exception("Failed to retreive the input console handle.", innerException);
+                throw new Exception("Failed to retrieve the input console handle.", innerException);
             }
 
             return new SafeFileHandle(handle, true);
@@ -691,13 +712,22 @@ namespace Microsoft.PowerShell.Internal
 
             CONSOLE_FONT_INFO_EX fontInfo = new CONSOLE_FONT_INFO_EX();
             fontInfo.cbSize = Marshal.SizeOf(fontInfo);
-            bool result = NativeMethods.GetCurrentConsoleFontEx(consoleHandle.DangerousGetHandle(), false, ref fontInfo);
+            bool result = true;
+            if (_getCurrentConsoleFontExApiAvailable)
+            {
+                try
+                {
+                    result = NativeMethods.GetCurrentConsoleFontEx(consoleHandle.DangerousGetHandle(), false, ref fontInfo);
+                }
+                catch (System.EntryPointNotFoundException)
+                {
+                    _getCurrentConsoleFontExApiAvailable = false;  // api not available on NanoServer
+                }
+            }
 
             if (result == false)
             {
-                int err = Marshal.GetLastWin32Error();
-                Win32Exception innerException = new Win32Exception(err);
-                throw new Exception("Failed to get console font information.", innerException);
+                _getCurrentConsoleFontExApiAvailable = false; // api not supported on ServerCore
             }
             return fontInfo;
         }
@@ -713,10 +743,10 @@ namespace Microsoft.PowerShell.Internal
         internal static bool IsAnyDBCSCharSet(uint charSet)
         {
             const uint SHIFTJIS_CHARSET = 128;
-            const uint HANGEUL_CHARSET = 129;
+            const uint HANGUL_CHARSET = 129;
             const uint CHINESEBIG5_CHARSET = 136;
             const uint GB2312_CHARSET = 134;
-            return charSet == SHIFTJIS_CHARSET || charSet == HANGEUL_CHARSET ||
+            return charSet == SHIFTJIS_CHARSET || charSet == HANGUL_CHARSET ||
                    charSet == CHINESEBIG5_CHARSET || charSet == GB2312_CHARSET;
         }
 
@@ -798,7 +828,7 @@ namespace Microsoft.PowerShell.Internal
                      (0xffd2 <= c && c <= 0xffd7) ||
                      (0xffda <= c && c <= 0xffdc))
             {
-                /* Halfwidth Hangule variants */
+                /* Halfwidth Hangul variants */
                 return 1;
             }
             else if (0xffe0 <= c && c <= 0xffe6)
@@ -865,7 +895,6 @@ namespace Microsoft.PowerShell.Internal
             CONSOLE_FONT_INFO_EX fontInfo = ConhostConsole.GetConsoleFontInfo(consoleHandle);
             int fontType = fontInfo.FontFamily & NativeMethods.FontTypeMask;
             _trueTypeInUse = (fontType & NativeMethods.TrueTypeFont) == NativeMethods.TrueTypeFont;
-
         }
 
         public void EndRender()
@@ -1039,17 +1068,33 @@ namespace Microsoft.PowerShell.Internal
 
             Console.SetCursorPosition(0, (top>=0) ? top : 0);
 
+            var lastForegroundColor = (ConsoleColor)(-1);
+            var lastBackgroundColor = (ConsoleColor)(-1);
             for (int i = 0; i < buffer.Length; ++i)
             {
                 // TODO: use escape sequences for better perf
-                Console.ForegroundColor =  buffer[i].ForegroundColor;
-                Console.BackgroundColor =  buffer[i].BackgroundColor;
+                var nextForegroundColor = buffer[i].ForegroundColor;
+                var nextBackgroundColor = buffer[i].BackgroundColor;
+                if (nextForegroundColor != lastForegroundColor)
+                {
+                    Console.ForegroundColor = lastForegroundColor = nextForegroundColor;
+                }
+                if (nextBackgroundColor != lastBackgroundColor)
+                {
+                    Console.BackgroundColor = lastBackgroundColor = nextBackgroundColor;
+                }
 
                 Console.Write(buffer[i].UnicodeChar);
             }
 
-            Console.BackgroundColor = backgroundColor;
-            Console.ForegroundColor = foregroundColor;
+            if (foregroundColor != lastForegroundColor)
+            {
+                Console.ForegroundColor = foregroundColor;
+            }
+            if (backgroundColor != lastBackgroundColor)
+            {
+                Console.BackgroundColor = backgroundColor;
+            }
         }
 
         public void ScrollBuffer(int lines)
@@ -1091,13 +1136,6 @@ namespace Microsoft.PowerShell.Internal
         {
             Console.Clear();
         }
-    }
-#endif
-
-#if CORECLR // TODO: remove if CORECLR adds this attribute back
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Constructor | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Event)]
-    sealed class ExcludeFromCodeCoverageAttribute : Attribute
-    {
     }
 #endif
 

@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!-- 
-    Microsoft ResX Schema 
-    
+  <!--
+    Microsoft ResX Schema
+
     Version 2.0
-    
-    The primary goals of this format is to allow a simple XML format 
-    that is mostly human readable. The generation and parsing of the 
-    various data types are done through the TypeConverter classes 
+
+    The primary goals of this format is to allow a simple XML format
+    that is mostly human readable. The generation and parsing of the
+    various data types are done through the TypeConverter classes
     associated with the data types.
-    
+
     Example:
-    
+
     ... ado.net/XML headers & schema ...
     <resheader name="resmimetype">text/microsoft-resx</resheader>
     <resheader name="version">2.0</resheader>
@@ -26,41 +26,41 @@
         <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
         <comment>This is a comment</comment>
     </data>
-                
-    There are any number of "resheader" rows that contain simple 
+
+    There are any number of "resheader" rows that contain simple
     name/value pairs.
-    
-    Each data row contains a name, and value. The row also contains a 
-    type or mimetype. Type corresponds to a .NET class that support 
-    text/value conversion through the TypeConverter architecture. 
-    Classes that don't support this are serialized and stored with the 
+
+    Each data row contains a name, and value. The row also contains a
+    type or mimetype. Type corresponds to a .NET class that support
+    text/value conversion through the TypeConverter architecture.
+    Classes that don't support this are serialized and stored with the
     mimetype set.
-    
-    The mimetype is used for serialized objects, and tells the 
-    ResXResourceReader how to depersist the object. This is currently not 
+
+    The mimetype is used for serialized objects, and tells the
+    ResXResourceReader how to depersist the object. This is currently not
     extensible. For a given mimetype the value must be set accordingly:
-    
-    Note - application/x-microsoft.net.object.binary.base64 is the format 
-    that the ResXResourceWriter will generate, however the reader can 
+
+    Note - application/x-microsoft.net.object.binary.base64 is the format
+    that the ResXResourceWriter will generate, however the reader can
     read any of the formats listed below.
-    
+
     mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with 
+    value   : The object must be serialized with
             : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
             : and then encoded with base64 encoding.
-    
+
     mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with 
+    value   : The object must be serialized with
             : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
             : and then encoded with base64 encoding.
 
     mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array 
+    value   : The object must be serialized into a byte array
             : using a System.ComponentModel.TypeConverter
             : and then encoded with base64 encoding.
     -->
-  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
-    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+  <xsd:schema id="root" xmlns="" xmlns:xsd="https://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="https://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
         <xsd:choice maxOccurs="unbounded">
@@ -297,7 +297,7 @@
   <data name="ProviderStartException" xml:space="preserve">
     <value>Attempting to perform the Start operation on the '{0}' provider failed. {1}</value>
   </data>
-  <data name="StartDynamicParmatersProviderException" xml:space="preserve">
+  <data name="StartDynamicParameterProviderException" xml:space="preserve">
     <value>Attempting to perform the StartDynamicParameters operation on the '{0}' provider failed for the path '{1}'. {2}</value>
   </data>
   <data name="InitializeDefaultDrivesException" xml:space="preserve">
@@ -368,21 +368,6 @@
   </data>
   <data name="VariableNotRemovable" xml:space="preserve">
     <value>Cannot remove variable {0} because it is constant or read-only. If the variable is read-only, try the operation again specifying the Force option.</value>
-  </data>
-  <data name="VariableNotRemovableSystem" xml:space="preserve">
-    <value>Cannot remove variable {0} because it is owned by the system.</value>
-  </data>
-  <data name="AliasOverflow" xml:space="preserve">
-    <value>Alias {0} cannot be created because alias capacity {1} has been exceeded for this scope.</value>
-  </data>
-  <data name="DriveOverflow" xml:space="preserve">
-    <value>Drive {0} cannot be created because drive capacity {1} has been exceeded for this scope.</value>
-  </data>
-  <data name="FunctionOverflow" xml:space="preserve">
-    <value>Function {0} cannot be created because function capacity {1} has been exceeded for this scope.</value>
-  </data>
-  <data name="VariableOverflow" xml:space="preserve">
-    <value>Cannot create variable {0} because variable capacity {1} is exceeded for this scope.</value>
   </data>
   <data name="AliasIsConstant" xml:space="preserve">
     <value>Alias {0} cannot be modified because it is constant.</value>
@@ -466,7 +451,7 @@
     <value>Cannot find a provider with the name '{0}'.</value>
   </data>
   <data name="ProviderNotFoundBadFormat" xml:space="preserve">
-    <value>Cannot find a provider with the name '{0}'. The name is not in the proper format. A provider name can only be alphanumeric characters, or a Windows PowerShell snap-in name that is followed by a single '\', followed by alphanumeric characters.</value>
+    <value>Cannot find a provider with the name '{0}'. The name is not in the proper format. A provider name can only be alphanumeric characters, or a PowerShell snap-in name that is followed by a single '\', followed by alphanumeric characters.</value>
   </data>
   <data name="ProviderNameAmbiguous" xml:space="preserve">
     <value>'{0}' resolved to more than one provider name. Possible matches include:{1}.</value>

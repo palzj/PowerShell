@@ -1,7 +1,7 @@
 #pragma warning disable 1634, 1691
 
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 #pragma warning disable 1634, 1691
@@ -19,12 +19,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Globalization;
 using System.ComponentModel;
-
-#if CORECLR
-// Use stub for SystemException
-using Microsoft.PowerShell.CoreClr.Stubs;
 using System.Reflection;
-#endif
 
 namespace Microsoft.PowerShell.Commands
 {
@@ -233,7 +228,7 @@ namespace Microsoft.PowerShell.Commands
             {
                 // All Acl cmdlets returning SIDs will return a string
                 // representation of the SID in all cases where the SID
-                // cannot be mapped to a proper user or group name.                    
+                // cannot be mapped to a proper user or group name.
             }
 
             // We are here since we cannot get IdentityReference from sd..
@@ -393,7 +388,7 @@ namespace Microsoft.PowerShell.Commands
                     return null;
                 }
                 NativeMethods.ACL sacl = new NativeMethods.ACL();
-                sacl = ClrFacade.PtrToStructure<NativeMethods.ACL>(pSacl);
+                sacl = Marshal.PtrToStructure<NativeMethods.ACL>(pSacl);
                 if (sacl.AceCount == 0)
                 {
                     return null;
@@ -404,7 +399,7 @@ namespace Microsoft.PowerShell.Commands
                 for (uint aceIdx = 0; aceIdx < sacl.AceCount; aceIdx++)
                 {
                     NativeMethods.ACE_HEADER ace = new NativeMethods.ACE_HEADER();
-                    ace = ClrFacade.PtrToStructure<NativeMethods.ACE_HEADER>(pAce);
+                    ace = Marshal.PtrToStructure<NativeMethods.ACE_HEADER>(pAce);
                     Dbg.Diagnostics.Assert(ace.AceType ==
                         NativeMethods.SYSTEM_SCOPED_POLICY_ID_ACE_TYPE,
                         "Unexpected ACE type: " + ace.AceType.ToString(CultureInfo.CurrentCulture));
@@ -479,7 +474,7 @@ namespace Microsoft.PowerShell.Commands
 
                 // Get the CAP name.
                 NativeMethods.CENTRAL_ACCESS_POLICY cap = new NativeMethods.CENTRAL_ACCESS_POLICY();
-                cap = ClrFacade.PtrToStructure<NativeMethods.CENTRAL_ACCESS_POLICY>(caps);
+                cap = Marshal.PtrToStructure<NativeMethods.CENTRAL_ACCESS_POLICY>(caps);
                 // LSA_UNICODE_STRING is composed of WCHARs, but its length is given in bytes.
                 return Marshal.PtrToStringUni(cap.Name.Buffer, cap.Name.Length / 2);
             }
@@ -537,7 +532,7 @@ namespace Microsoft.PowerShell.Commands
                     // Retrieve CAP name.
                     Dbg.Diagnostics.Assert(capPtr != IntPtr.Zero,
                         "Invalid central access policies array");
-                    cap = ClrFacade.PtrToStructure<NativeMethods.CENTRAL_ACCESS_POLICY>(capPtr);
+                    cap = Marshal.PtrToStructure<NativeMethods.CENTRAL_ACCESS_POLICY>(capPtr);
                     // LSA_UNICODE_STRING is composed of WCHARs, but its length is given in bytes.
                     policies[capIdx] = "\"" + Marshal.PtrToStringUni(
                         cap.Name.Buffer,
@@ -569,7 +564,7 @@ namespace Microsoft.PowerShell.Commands
 #endif
 
         /// <summary>
-        /// Gets the security descriptor (in SDDL form) of the 
+        /// Gets the security descriptor (in SDDL form) of the
         /// provided PSObject.  SDDL form is the Security Descriptor
         /// Definition Language.
         /// </summary>
@@ -614,15 +609,16 @@ namespace Microsoft.PowerShell.Commands
         private string[] _exclude = new string[0];
     }
 
+#if !UNIX
     /// <summary>
     /// Defines the implementation of the 'get-acl' cmdlet.
-    /// This cmdlet gets the security descriptor of an item at the specified path.  
+    /// This cmdlet gets the security descriptor of an item at the specified path.
     /// </summary>
-    [Cmdlet(VerbsCommon.Get, "Acl", SupportsTransactions = true, DefaultParameterSetName = "ByPath", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113305")]
+    [Cmdlet(VerbsCommon.Get, "Acl", SupportsTransactions = true, DefaultParameterSetName = "ByPath", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113305")]
     public sealed class GetAclCommand : SecurityDescriptorCommandsBase
     {
         /// <summary>
-        /// Initialzes a new instance of the GetAclCommand
+        /// Initializes a new instance of the GetAclCommand
         /// class.  Sets the default path to the current location.
         /// </summary>
         public GetAclCommand()
@@ -697,7 +693,7 @@ namespace Microsoft.PowerShell.Commands
         private bool _isLiteralPath = false;
 
         /// <summary>
-        /// Gets or sets the audit flag of the command.  This flag 
+        /// Gets or sets the audit flag of the command.  This flag
         /// determines if audit rules should also be retrieved.
         /// </summary>
         [Parameter()]
@@ -717,7 +713,7 @@ namespace Microsoft.PowerShell.Commands
 
 #if CORECLR
         /// <summary>
-        /// Parameter '-AllCentralAccessPolicies' is not supported in OneCore powershell, 
+        /// Parameter '-AllCentralAccessPolicies' is not supported in OneCore powershell,
         /// because function 'LsaQueryCAPs' is not available in OneCoreUAP and NanoServer.
         /// </summary>
         private SwitchParameter AllCentralAccessPolicies
@@ -726,8 +722,8 @@ namespace Microsoft.PowerShell.Commands
         }
 #else
         /// <summary>
-        /// Gets or sets the AllCentralAccessPolicies flag of the command. This flag 
-        /// determines whether the information about all central access policies 
+        /// Gets or sets the AllCentralAccessPolicies flag of the command. This flag
+        /// determines whether the information about all central access policies
         /// available on the machine should be displayed.
         /// </summary>
         [Parameter()]
@@ -782,11 +778,9 @@ namespace Microsoft.PowerShell.Commands
                             customDescriptor = new CommonSecurityDescriptor(false, false, customDescriptor.ToString());
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         // Calling user code, Catch-all OK
-                        CommandProcessorBase.CheckForSevereException(e);
-
                         ErrorRecord er =
                         SecurityUtils.CreateNotSupportedErrorRecord(
                             UtilsStrings.MethodInvokeFail,
@@ -895,10 +889,10 @@ namespace Microsoft.PowerShell.Commands
 
     /// <summary>
     /// Defines the implementation of the 'set-acl' cmdlet.
-    /// This cmdlet sets the security descriptor of an item at the specified path.  
+    /// This cmdlet sets the security descriptor of an item at the specified path.
     /// </summary>
     [Cmdlet(VerbsCommon.Set, "Acl", SupportsShouldProcess = true, SupportsTransactions = true, DefaultParameterSetName = "ByPath",
-            HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113389")]
+            HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113389")]
     public sealed class SetAclCommand : SecurityDescriptorCommandsBase
     {
         private string[] _path;
@@ -987,7 +981,7 @@ namespace Microsoft.PowerShell.Commands
 
 #if CORECLR
         /// <summary>
-        /// Parameter '-CentralAccessPolicy' is not supported in OneCore powershell, 
+        /// Parameter '-CentralAccessPolicy' is not supported in OneCore powershell,
         /// because function 'LsaQueryCAPs' is not available in OneCoreUAP and NanoServer.
         /// </summary>
         private string CentralAccessPolicy
@@ -1104,7 +1098,7 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         /// <remarks>
         /// Function 'LsaQueryCAPs' is not available in OneCoreUAP and NanoServer.
-        /// So the parameter "-CentralAccessPolicy" is not supported on OneCore powershell, 
+        /// So the parameter "-CentralAccessPolicy" is not supported on OneCore powershell,
         /// and thus this method won't be hit in OneCore powershell.
         /// </remarks>
         private IntPtr GetSaclWithCapId(string capStr)
@@ -1121,10 +1115,10 @@ namespace Microsoft.PowerShell.Commands
                 if (!ret)
                 {
                     // We may have got a CAP friendly name instead of CAPID.
-                    // Enumerate all CAPs on the system and try to find one with 
+                    // Enumerate all CAPs on the system and try to find one with
                     // a matching friendly name.
-                    // If we retrieve the CAPID from the LSA, the CAPID need not 
-                    // be deallocated separately (but with the entire buffer 
+                    // If we retrieve the CAPID from the LSA, the CAPID need not
+                    // be deallocated separately (but with the entire buffer
                     // returned by LsaQueryCAPs).
                     freeCapId = false;
                     uint capCount = 0;
@@ -1151,7 +1145,7 @@ namespace Microsoft.PowerShell.Commands
                     {
                         Dbg.Diagnostics.Assert(capPtr != IntPtr.Zero,
                             "Invalid central access policies array");
-                        cap = ClrFacade.PtrToStructure<NativeMethods.CENTRAL_ACCESS_POLICY>(capPtr);
+                        cap = Marshal.PtrToStructure<NativeMethods.CENTRAL_ACCESS_POLICY>(capPtr);
                         // LSA_UNICODE_STRING is composed of WCHARs, but its length is given in bytes.
                         string capName = Marshal.PtrToStringUni(
                             cap.Name.Buffer,
@@ -1200,7 +1194,7 @@ namespace Microsoft.PowerShell.Commands
                 }
 
                 // Add CAPID to the SACL.
-                rs = NativeMethods.RtlAddScopedPolicyIDAce(
+                rs = NativeMethods.AddScopedPolicyIDAce(
                     pSacl,
                     NativeMethods.ACL_REVISION,
                     NativeMethods.SUB_CONTAINERS_AND_OBJECTS_INHERIT,
@@ -1238,8 +1232,8 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// Returns the current thread or process token with the specified privilege enabled 
-        /// and the previous state of this privilege. Free the returned token 
+        /// Returns the current thread or process token with the specified privilege enabled
+        /// and the previous state of this privilege. Free the returned token
         /// by calling NativeMethods.CloseHandle.
         /// </summary>
         private IntPtr GetTokenWithEnabledPrivilege(
@@ -1318,7 +1312,7 @@ namespace Microsoft.PowerShell.Commands
 
         /// Processes records from the input pipeline.
         /// For each input file, the command sets its
-        /// security descriptor to the specified 
+        /// security descriptor to the specified
         /// Access Control List (ACL).
         protected override void ProcessRecord()
         {
@@ -1356,11 +1350,9 @@ namespace Microsoft.PowerShell.Commands
                     {
                         methodInfo.Invoke(sddl);
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         // Calling user code, Catch-all OK
-                        CommandProcessorBase.CheckForSevereException(e);
-
                         ErrorRecord er =
                         SecurityUtils.CreateNotSupportedErrorRecord(
                             UtilsStrings.MethodInvokeFail,
@@ -1582,6 +1574,8 @@ namespace Microsoft.PowerShell.Commands
             }
         }
     } // class SetAclCommand
+#endif // !UNIX
+
 }// namespace Microsoft.PowerShell.Commands
 
 #pragma warning restore 56506

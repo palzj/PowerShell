@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -12,10 +12,10 @@ namespace Microsoft.PowerShell.Commands
 {
     #region get-date
 
-    /// <summary> 
-    /// implementation for the get-date command 
-    /// </summary> 
-    [Cmdlet(VerbsCommon.Get, "Date", DefaultParameterSetName = "net", HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113313")]
+    /// <summary>
+    /// implementation for the get-date command
+    /// </summary>
+    [Cmdlet(VerbsCommon.Get, "Date", DefaultParameterSetName = "net", HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113313")]
     [OutputType(typeof(string), ParameterSetName = new string[] { "UFormat", "net" })]
     [OutputType(typeof(DateTime), ParameterSetName = new string[] { "net" })]
     public sealed class GetDateCommand : Cmdlet
@@ -197,15 +197,17 @@ namespace Microsoft.PowerShell.Commands
 
         /// <summary>
         /// Unix format string
-        /// </summary> 
+        /// </summary>
         [Parameter(ParameterSetName = "UFormat")]
+        [ValidateNotNullOrEmpty]
         public string UFormat { get; set; }
 
 
         /// <summary>
         /// Unix format string
-        /// </summary> 
+        /// </summary>
         [Parameter(ParameterSetName = "net")]
+        [ArgumentCompletions("FileDate", "FileDateUniversal", "FileDateTime", "FileDateTimeUniversal")]
         public string Format { get; set; }
 
         #endregion
@@ -214,7 +216,7 @@ namespace Microsoft.PowerShell.Commands
 
         /// <summary>
         /// get the time
-        /// </summary> 
+        /// </summary>
         protected override void ProcessRecord()
         {
             DateTime dateToUse = DateTime.Now;
@@ -331,8 +333,7 @@ namespace Microsoft.PowerShell.Commands
             int offset = 0;
             StringBuilder sb = new StringBuilder();
 
-
-            // folks may include the "+" as part of the format string 
+            // folks may include the "+" as part of the format string
             if (UFormat[0] == '+')
             {
                 offset++;
@@ -522,15 +523,15 @@ namespace Microsoft.PowerShell.Commands
     public enum DisplayHintType
     {
         /// <summary>
-        /// Display prerence Date-Only
+        /// Display preference Date-Only
         /// </summary>
         Date,
         /// <summary>
-        /// Display prerence Time-Only
+        /// Display preference Time-Only
         /// </summary>
         Time,
         /// <summary>
-        /// Display prerence Date and Time
+        /// Display preference Date and Time
         /// </summary>
         DateTime
     }

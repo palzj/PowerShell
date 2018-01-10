@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -10,11 +10,6 @@ using Microsoft.PowerShell.Commands.Internal.Format;
 using System.Management.Automation.Internal;
 using System.Diagnostics.CodeAnalysis;
 
-#if CORECLR
-// Use stubs for SystemException
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
-
 namespace Microsoft.PowerShell.Commands
 {
     /// <summary>
@@ -23,7 +18,7 @@ namespace Microsoft.PowerShell.Commands
     internal sealed class MshExpressionFilter
     {
         /// <summary>
-        /// construnt the class, using an array of patterns
+        /// construct the class, using an array of patterns
         /// </summary>
         /// <param name="wildcardPatternsStrings">array of pattern strings to use</param>
         internal MshExpressionFilter(string[] wildcardPatternsStrings)
@@ -69,16 +64,16 @@ namespace Microsoft.PowerShell.Commands
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
-    [Cmdlet("Select", "Object", DefaultParameterSetName = "DefaultParameter",
-        HelpUri = "http://go.microsoft.com/fwlink/?LinkID=113387", RemotingCapability = RemotingCapability.None)]
+    [Cmdlet(VerbsCommon.Select, "Object", DefaultParameterSetName = "DefaultParameter",
+        HelpUri = "https://go.microsoft.com/fwlink/?LinkID=113387", RemotingCapability = RemotingCapability.None)]
     public sealed class SelectObjectCommand : PSCmdlet
     {
         #region Command Line Switches
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         [Parameter(ValueFromPipeline = true)]
@@ -86,7 +81,7 @@ namespace Microsoft.PowerShell.Commands
 
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         [Parameter(Position = 0, ParameterSetName = "DefaultParameter")]
@@ -94,7 +89,7 @@ namespace Microsoft.PowerShell.Commands
         public object[] Property { get; set; }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         [Parameter(ParameterSetName = "DefaultParameter")]
@@ -102,7 +97,7 @@ namespace Microsoft.PowerShell.Commands
         public string[] ExcludeProperty { get; set; } = null;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         [Parameter(ParameterSetName = "DefaultParameter")]
@@ -110,7 +105,7 @@ namespace Microsoft.PowerShell.Commands
         public string ExpandProperty { get; set; } = null;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         [Parameter]
@@ -122,7 +117,7 @@ namespace Microsoft.PowerShell.Commands
         private bool _unique;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         [Parameter(ParameterSetName = "DefaultParameter")]
@@ -137,7 +132,7 @@ namespace Microsoft.PowerShell.Commands
         private int _last = 0;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <value></value>
         [Parameter(ParameterSetName = "DefaultParameter")]
@@ -154,7 +149,7 @@ namespace Microsoft.PowerShell.Commands
 
 
         /// <summary>
-        /// Skips the sepecified number of items from top when used with First,from end when used with Last
+        /// Skips the specified number of items from top when used with First,from end when used with Last
         /// </summary>
         /// <value></value>
         [Parameter(ParameterSetName = "DefaultParameter")]
@@ -169,7 +164,7 @@ namespace Microsoft.PowerShell.Commands
         public int SkipLast { get; set; } = 0;
 
         /// <summary>
-        /// With this switch present, the cmdlet won't "short-circuit" 
+        /// With this switch present, the cmdlet won't "short-circuit"
         /// (i.e. won't stop upstream cmdlets after it knows that no further objects will be emitted downstream)
         /// </summary>
         [Parameter(ParameterSetName = "DefaultParameter")]
@@ -267,7 +262,7 @@ namespace Microsoft.PowerShell.Commands
                 }
                 else
                 {
-                    //if last paramater is not mentioned,remove the objects and decrement the skip
+                    //if last parameter is not mentioned,remove the objects and decrement the skip
                     if (_last == 0)
                     {
                         Dequeue();
@@ -322,10 +317,12 @@ namespace Microsoft.PowerShell.Commands
                 new ParameterProcessor(new SelectObjectExpressionParameterDefinition());
             if ((Property != null) && (Property.Length != 0))
             {
+                // Build property list taking into account the wildcards and @{name=;expression=}
                 _propertyMshParameterList = processor.ProcessParameters(Property, invocationContext);
             }
             else
             {
+                // Property don't exist
                 _propertyMshParameterList = new List<MshParameter>();
             }
 
@@ -337,6 +334,12 @@ namespace Microsoft.PowerShell.Commands
             if (ExcludeProperty != null)
             {
                 _exclusionFilter = new MshExpressionFilter(ExcludeProperty);
+                // ExcludeProperty implies -Property * for better UX
+                if ((Property == null) || (Property.Length == 0))
+                {
+                    Property = new Object[]{"*"};
+                    _propertyMshParameterList = processor.ProcessParameters(Property, invocationContext);
+                }
             }
         }
 
@@ -361,15 +364,15 @@ namespace Microsoft.PowerShell.Commands
                 PSObject result = new PSObject();
                 if (matchedProperties.Count != 0)
                 {
-                    HashSet<string> propertNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    HashSet<string> propertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (PSNoteProperty noteProperty in matchedProperties)
                     {
                         try
                         {
-                            if (!propertNames.Contains(noteProperty.Name))
+                            if (!propertyNames.Contains(noteProperty.Name))
                             {
-                                propertNames.Add(noteProperty.Name);
+                                propertyNames.Add(noteProperty.Name);
                                 result.Properties.Add(noteProperty);
                             }
                             else
@@ -414,18 +417,10 @@ namespace Microsoft.PowerShell.Commands
                 }
             }
 
-            if (expressionResults.Count == 0)
+            // allow 'Select-Object -Property noexist-name' to return a PSObject with property noexist-name,
+            // unless noexist-name itself contains wildcards
+            if (expressionResults.Count == 0 && !ex.HasWildCardCharacters)
             {
-                //Commented out for bug 1107600
-                //if (!ex.HasWildCardCharacters)
-                //{
-                //    ErrorRecord errorRecord = new ErrorRecord(
-                //        tracer.NewArgumentException("Property", ResourcesBaseName, "PropertyNotFound", ex.ToString()),
-                //        "PropertyNotFound",
-                //         ErrorCategory.InvalidArgument,
-                //        inputObject);
-                //    WriteError(errorRecord);
-                //}
                 expressionResults.Add(new MshExpressionResult(null, ex, null));
             }
 
@@ -650,7 +645,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected override void BeginProcessing()
         {
@@ -667,7 +662,7 @@ namespace Microsoft.PowerShell.Commands
         private int _indexOfCurrentObject = 0;
         private int _indexCount = 0;
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected override void ProcessRecord()
         {
@@ -714,7 +709,7 @@ namespace Microsoft.PowerShell.Commands
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         protected override void EndProcessing()
         {

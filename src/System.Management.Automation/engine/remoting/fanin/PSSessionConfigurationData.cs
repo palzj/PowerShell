@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
- * Copyright (c) Microsoft Corporation.  All rights reserved.
+ * Copyright (c) Microsoft Corporation. All rights reserved.
  * --********************************************************************/
 
 using System.IO;
@@ -12,7 +12,7 @@ using System.Text;
 namespace System.Management.Automation.Remoting
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public sealed class PSSessionConfigurationData
     {
@@ -23,7 +23,7 @@ namespace System.Management.Automation.Remoting
         #region Public Properties
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public List<string> ModulesToImport
         {
@@ -42,7 +42,7 @@ namespace System.Management.Automation.Remoting
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public String PrivateData
         {
@@ -89,9 +89,7 @@ namespace System.Management.Automation.Remoting
                 IgnoreComments = true,
                 IgnoreProcessingInstructions = true,
                 MaxCharactersInDocument = 10000,
-#if !CORECLR // No XmlReaderSettings.XmlResolver in CoreCLR
                 XmlResolver = null,
-#endif
                 ConformanceLevel = ConformanceLevel.Fragment
             };
 

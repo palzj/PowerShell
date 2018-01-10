@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -15,43 +15,43 @@ using Dbg = System.Management.Automation.Diagnostics;
 namespace Microsoft.PowerShell
 {
     /// <summary>
-    /// 
+    ///
     /// Wraps Hitesh's xml serializer in such a way that it will select the proper serializer based on the data
     /// format.
-    /// 
+    ///
     /// </summary>
 
     internal class Serialization
     {
         /// <summary>
-        /// 
-        /// Describes the format of the data streamed between minishells, e.g. the allowed arguments to the minishell 
+        ///
+        /// Describes the format of the data streamed between minishells, e.g. the allowed arguments to the minishell
         /// -outputformat and -inputformat command line parameters.
-        /// 
+        ///
         /// </summary>
 
         internal enum DataFormat
         {
             /// <summary>
-            /// 
+            ///
             /// text format -- i.e. stream text just as out-default would display it.
-            /// 
+            ///
             /// </summary>
 
             Text = 0,
 
             /// <summary>
-            /// 
+            ///
             /// XML-serialized format
-            /// 
+            ///
             /// </summary>
 
             XML = 1,
 
             /// <summary>
-            /// 
+            ///
             /// Indicates that the data should be discarded instead of processed.
-            /// 
+            ///
             /// </summary>
             None = 2
         }
@@ -197,7 +197,7 @@ namespace Microsoft.PowerShell
             switch (format)
             {
                 case DataFormat.XML:
-                    _xmlReader = XmlReader.Create(textReader);
+                    _xmlReader = XmlReader.Create(textReader,  new XmlReaderSettings { XmlResolver = null });
                     _xmlDeserializer = new Deserializer(_xmlReader);
                     break;
                 case DataFormat.Text:
@@ -304,6 +304,6 @@ namespace Microsoft.PowerShell
         private string _firstLine;
         private bool _atEnd;
     }
-}   // namespace 
+}   // namespace
 
 

@@ -1,10 +1,14 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
+using System.Management.Automation;
 using System.Text;
 using Microsoft.Win32;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 
 namespace Microsoft.PowerShell.Commands
 {
@@ -87,7 +91,8 @@ namespace Microsoft.PowerShell.Commands
             || CheckIsXml(contentType)
             || CheckIsJson(contentType);
 
-            if (!isText)
+            // Further content type analysis is available on Windows
+            if (Platform.IsWindows && !isText)
             {
                 // Media types registered with Windows as having a perceived type of text, are text
                 using (RegistryKey contentTypeKey = Registry.ClassesRoot.OpenSubKey(@"MIME\Database\Content Type\" + contentType))
@@ -135,7 +140,7 @@ namespace Microsoft.PowerShell.Commands
             // the correct type for JSON content, as specified in RFC 4627
             bool isJson = contentType.Equals("application/json", StringComparison.OrdinalIgnoreCase);
 
-            // add in these other "javascript" related types that 
+            // add in these other "javascript" related types that
             // sometimes get sent down as the mime type for JSON content
             isJson |= contentType.Equals("text/json", StringComparison.OrdinalIgnoreCase)
             || contentType.Equals("application/x-javascript", StringComparison.OrdinalIgnoreCase)
@@ -147,5 +152,65 @@ namespace Microsoft.PowerShell.Commands
         }
 
         #endregion Internal Helper Methods
+    }
+
+    // TODO: merge Partials
+
+    internal static partial class ContentHelper
+    {
+        internal static Encoding GetEncoding(HttpResponseMessage response)
+        {
+            // ContentType may not exist in response header.
+            string charSet = response.Content.Headers.ContentType?.CharSet;
+            return GetEncodingOrDefault(charSet);
+        }
+
+        internal static string GetContentType(HttpResponseMessage response)
+        {
+            // ContentType may not exist in response header.  Return null if not.
+            return response.Content.Headers.ContentType?.MediaType;
+        }
+
+        internal static StringBuilder GetRawContentHeader(HttpResponseMessage response)
+        {
+            StringBuilder raw = new StringBuilder();
+
+            string protocol = WebResponseHelper.GetProtocol(response);
+            if (!string.IsNullOrEmpty(protocol))
+            {
+                int statusCode = WebResponseHelper.GetStatusCode(response);
+                string statusDescription = WebResponseHelper.GetStatusDescription(response);
+                raw.AppendFormat("{0} {1} {2}", protocol, statusCode, statusDescription);
+                raw.AppendLine();
+            }
+
+            HttpHeaders[] headerCollections =
+            {
+                response.Headers,
+                response.Content == null ? null : response.Content.Headers
+            };
+
+            foreach (var headerCollection in headerCollections)
+            {
+                if (headerCollection == null)
+                {
+                    continue;
+                }
+                foreach (var header in headerCollection)
+                {
+                    // Headers may have multiple entries with different values
+                    foreach (var headerValue in header.Value)
+                    {
+                        raw.Append(header.Key);
+                        raw.Append(": ");
+                        raw.Append(headerValue);
+                        raw.AppendLine();
+                    }
+                }
+            }
+
+            raw.AppendLine();
+            return raw;
+        }
     }
 }

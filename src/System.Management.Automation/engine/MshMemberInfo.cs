@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Linq;
@@ -13,6 +13,7 @@ using System.Collections;
 using System.ComponentModel;
 using System.Text;
 using System.Management.Automation.Internal;
+using System.Management.Automation.Interpreter;
 using Microsoft.PowerShell;
 using TypeTable = System.Management.Automation.Runspaces.TypeTable;
 
@@ -43,7 +44,7 @@ namespace System.Management.Automation
         /// </summary>
         Property = 4,
         /// <summary>
-        /// A prorperty defined by a Name-Value pair
+        /// A property defined by a Name-Value pair
         /// </summary>
         NoteProperty = 8,
         /// <summary>
@@ -122,7 +123,7 @@ namespace System.Management.Automation
     }
 
     /// <summary>
-    /// Match options 
+    /// Match options
     /// </summary>
     [FlagsAttribute]
     internal enum MshMemberMatchOptions
@@ -225,7 +226,7 @@ namespace System.Management.Automation
         /// or enumerating a collection.
         /// This should not be settable as it would make the count of hidden properties in
         /// PSMemberInfoInternalCollection invalid.
-        /// For now, we are carefully setting this.isHidden before adding 
+        /// For now, we are carefully setting this.isHidden before adding
         /// the members toPSObjectMembersetCollection. In the future, we might need overload for all
         /// PSMemberInfo constructors to take isHidden.
         /// </summary>
@@ -240,11 +241,11 @@ namespace System.Management.Automation
         /// <summary>
         /// Gets and Sets the value of this member
         /// </summary>
-        /// <exception cref="GetValueException">When getting the value of a property throws an exception. 
-        /// This exception is also thrown if the property is an <see cref="PSScriptProperty"/> and there 
+        /// <exception cref="GetValueException">When getting the value of a property throws an exception.
+        /// This exception is also thrown if the property is an <see cref="PSScriptProperty"/> and there
         /// is no Runspace to run the script.</exception>
         /// <exception cref="SetValueException">When setting the value of a property throws an exception.
-        /// This exception is also thrown if the property is an <see cref="PSScriptProperty"/> and there 
+        /// This exception is also thrown if the property is an <see cref="PSScriptProperty"/> and there
         /// is no Runspace to run the script.</exception>
         /// <exception cref="ExtendedTypeSystemException">When some problem other then getting/setting the value happened</exception>
         public abstract object Value { get; set; }
@@ -363,7 +364,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Initializes a new instance of PSAliasProperty setting the name of the alias, 
+        /// Initializes a new instance of PSAliasProperty setting the name of the alias,
         /// the name of the member this alias refers to and the type to convert the referenced
         /// member's value.
         /// </summary>
@@ -404,7 +405,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Gets the the type to convert the referenced member's value. It might be 
+        /// Gets the the type to convert the referenced member's value. It might be
         /// null when no conversion is done.
         /// </summary>
         public Type ConversionType { get; private set; }
@@ -438,7 +439,7 @@ namespace System.Management.Automation
         /// Gets the type of the value for this member
         /// </summary>
         /// <exception cref="ExtendedTypeSystemException">
-        /// When 
+        /// When
         ///     the alias has not been added to an PSObject or
         ///     the alias has a cycle or
         ///     an aliased member is not present
@@ -459,10 +460,10 @@ namespace System.Management.Automation
         /// Gets true if this property can be set
         /// </summary>
         /// <exception cref="ExtendedTypeSystemException">
-        /// When 
+        /// When
         ///     the alias has not been added to an PSObject or
         ///     the alias has a cycle or
-        ///     an aliased member is not presen
+        ///     an aliased member is not present
         /// </exception>
         public override bool IsSettable
         {
@@ -481,7 +482,7 @@ namespace System.Management.Automation
         /// Gets true if this property can be read
         /// </summary>
         /// <exception cref="ExtendedTypeSystemException">
-        ///     When 
+        ///     When
         ///         the alias has not been added to an PSObject or
         ///         the alias has a cycle or
         ///         an aliased member is not present
@@ -557,7 +558,7 @@ namespace System.Management.Automation
         /// Gets and Sets the value of this member
         /// </summary>
         /// <exception cref="ExtendedTypeSystemException">
-        /// When 
+        /// When
         ///     the alias has not been added to an PSObject or
         ///     the alias has a cycle or
         ///     an aliased member is not present
@@ -633,7 +634,7 @@ namespace System.Management.Automation
             }
             catch (AmbiguousMatchException)
             {
-                // Ignore the AmbiguousMatchException. 
+                // Ignore the AmbiguousMatchException.
                 // We will generate error below if we cannot find exactly one match method.
             }
 
@@ -660,7 +661,7 @@ namespace System.Management.Automation
             }
             catch (AmbiguousMatchException)
             {
-                // Ignore the AmbiguousMatchException. 
+                // Ignore the AmbiguousMatchException.
                 // We will generate error below if we cannot find exactly one match method.
             }
 
@@ -761,7 +762,7 @@ namespace System.Management.Automation
         /// </summary>
         /// <param name="name">name of the property</param>
         /// <param name="getterCodeReference">This should be a public static non void method taking one PSObject parameter.</param>
-        /// <exception cref="ArgumentException">if namme is null or empty or getterCodeReference is null</exception>
+        /// <exception cref="ArgumentException">if name is null or empty or getterCodeReference is null</exception>
         /// <exception cref="ExtendedTypeSystemException">if getterCodeReference doesn't have the right format.</exception>
         public PSCodeProperty(string name, MethodInfo getterCodeReference)
         {
@@ -786,7 +787,7 @@ namespace System.Management.Automation
         /// <exception cref="ArgumentException">when methodForGet and methodForSet are null</exception>
         /// <exception cref="ExtendedTypeSystemException">
         /// if:
-        ///     - getterCodeReference doesn't have the right format, 
+        ///     - getterCodeReference doesn't have the right format,
         ///     - setterCodeReference doesn't have the right format,
         ///     - both getterCodeReference and setterCodeReference are null.
         /// </exception>
@@ -895,7 +896,6 @@ namespace System.Management.Automation
                     {
                         throw;
                     }
-                    CommandProcessorBase.CheckForSevereException(e);
                     throw new GetValueInvocationException("CatchFromCodePropertyGet",
                         e,
                         ExtendedTypeSystem.ExceptionWhenGetting,
@@ -929,7 +929,6 @@ namespace System.Management.Automation
                     {
                         throw;
                     }
-                    CommandProcessorBase.CheckForSevereException(e);
                     throw new SetValueInvocationException("CatchFromCodePropertySet",
                         e,
                         ExtendedTypeSystem.ExceptionWhenSetting,
@@ -1010,7 +1009,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Constructs this proprerty
+        /// Constructs this property
         /// </summary>
         /// <param name="name">name of the property</param>
         /// <param name="adapter">adapter used in DoGetProperty</param>
@@ -1176,7 +1175,7 @@ namespace System.Management.Automation
             : base(name, null, null, tag)
         {
             //
-            // Note that the constructor sets the adapter and base object to null; the ThirdPartyAdapter managing this property must set these values 
+            // Note that the constructor sets the adapter and base object to null; the ThirdPartyAdapter managing this property must set these values
             //
         }
 
@@ -1246,7 +1245,7 @@ namespace System.Management.Automation
         internal object noteValue;
 
         /// <summary>
-        /// Initiializes a new instance of the PSNoteProperty class.
+        /// Initializes a new instance of the PSNoteProperty class.
         /// </summary>
         /// <param name="name">name of the property</param>
         /// <param name="value">value of the property</param>
@@ -1413,7 +1412,7 @@ namespace System.Management.Automation
         internal PSVariable _variable;
 
         /// <summary>
-        /// Initiializes a new instance of the PSVariableProperty class. This is
+        /// Initializes a new instance of the PSVariableProperty class. This is
         /// a subclass of the NoteProperty that wraps a variable instead of a simple value.
         /// </summary>
         /// <param name="variable">The variable to wrap</param>
@@ -1681,7 +1680,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Initializes an instance of the PSScriptProperty class as a read only 
+        /// Initializes an instance of the PSScriptProperty class as a read only
         /// property. getterScript or setterScript can be null, but not both.
         /// </summary>
         /// <param name="name">Name of this property</param>
@@ -1715,7 +1714,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Initializes an instance of the PSScriptProperty class as a read only 
+        /// Initializes an instance of the PSScriptProperty class as a read only
         /// property, using the text of the properties to support lazy initialization.
         /// </summary>
         /// <param name="name">Name of this property</param>
@@ -1784,7 +1783,7 @@ namespace System.Management.Automation
         {
             get
             {
-                return this.SetterScript != null;
+                return this._setterScript != null || this._setterScriptText != null;
             }
         }
 
@@ -1795,14 +1794,14 @@ namespace System.Management.Automation
         {
             get
             {
-                return this.GetterScript != null;
+                return this._getterScript != null || this._getterScriptText != null;
             }
         }
 
         /// <summary>
         /// Gets and Sets the value of this property
         /// </summary>
-        /// <exception cref="GetValueException">When getting and there is no getter, 
+        /// <exception cref="GetValueException">When getting and there is no getter,
         /// when the getter throws an exception or when there is no Runspace to run the script.
         /// </exception>
         /// <exception cref="SetValueException">When setting and there is no setter,
@@ -1846,10 +1845,6 @@ namespace System.Management.Automation
                     args: new object[] { value });
                 return value;
             }
-            catch (SessionStateOverflowException e)
-            {
-                throw NewSetValueException(e, "ScriptSetValueSessionStateOverflowException");
-            }
             catch (RuntimeException e)
             {
                 throw NewSetValueException(e, "ScriptSetValueRuntimeException");
@@ -1880,10 +1875,6 @@ namespace System.Management.Automation
                     input: AutomationNull.Value,
                     scriptThis: scriptThis,
                     args: Utils.EmptyArray<object>());
-            }
-            catch (SessionStateOverflowException e)
-            {
-                throw NewGetValueException(e, "ScriptGetValueSessionStateOverflowException");
             }
             catch (RuntimeException e)
             {
@@ -2157,7 +2148,7 @@ namespace System.Management.Automation
             }
             catch (AmbiguousMatchException)
             {
-                // Ignore the AmbiguousMatchException. 
+                // Ignore the AmbiguousMatchException.
                 // We will generate error below if we cannot find exactly one match method.
             }
 
@@ -2248,7 +2239,7 @@ namespace System.Management.Automation
         /// <returns>return value from the method</returns>
         /// <exception cref="ArgumentException">if arguments is null</exception>
         /// <exception cref="MethodException">
-        ///     When 
+        ///     When
         ///         could CodeReference cannot match the given argument count or
         ///         could not convert an argument to the type required
         /// </exception>
@@ -2377,15 +2368,15 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="name"></param>
         /// <param name="script"></param>
         /// <param name="shouldCloneOnAccess">
         /// Used by TypeTable.
-        /// TypeTable might be shared between multiple runspaces and 
-        /// ScriptBlock is not shareable. We decided to Clone as needed 
-        /// instead of Cloning whenever a shared TypeTable is attached 
+        /// TypeTable might be shared between multiple runspaces and
+        /// ScriptBlock is not shareable. We decided to Clone as needed
+        /// instead of Cloning whenever a shared TypeTable is attached
         /// to a Runspace to save on Memory.
         /// </param>
         internal PSScriptMethod(string name, ScriptBlock script, bool shouldCloneOnAccess)
@@ -2423,14 +2414,6 @@ namespace System.Management.Automation
                     input: AutomationNull.Value,
                     scriptThis: @this,
                     args: arguments);
-            }
-            catch (SessionStateOverflowException e)
-            {
-                throw new MethodInvocationException(
-                    "ScriptMethodSessionStateOverflowException",
-                    e,
-                    ExtendedTypeSystem.MethodInvocationException,
-                    methodName, arguments.Length, e.Message);
             }
             catch (RuntimeException e)
             {
@@ -2538,7 +2521,7 @@ namespace System.Management.Automation
         }
 
         internal object adapterData;
-        private Adapter _adapter;
+        internal Adapter _adapter;
         internal object baseObject;
 
         /// <summary>
@@ -2660,7 +2643,405 @@ namespace System.Management.Automation
         /// True if the method is a special method like GET/SET property accessor methods.
         /// </summary>
         internal bool IsSpecial { get; private set; }
+
+        internal static PSMethod Create(string name, DotNetAdapter dotNetInstanceAdapter, object baseObject, DotNetAdapter.MethodCacheEntry method)
+        {
+            return Create(name, dotNetInstanceAdapter, baseObject, method, false, false);
+        }
+
+        internal static PSMethod Create(string name, DotNetAdapter dotNetInstanceAdapter, object baseObject, DotNetAdapter.MethodCacheEntry method, bool isSpecial, bool isHidden)
+        {
+            if (method.psmethodCtor == null)
+            {
+                method.psmethodCtor = CreatePSMethodConstructor(method.methodInformationStructures);
+            }
+            return method.psmethodCtor.Invoke(name, dotNetInstanceAdapter, baseObject, method, isSpecial, isHidden);
+        }
+
+        static Type GetMethodGroupType(MethodInfo methodInfo)
+        {
+            if (methodInfo.DeclaringType.IsGenericTypeDefinition)
+            {
+                return typeof(Func<PSNonBindableType>);
+            }
+
+            if (methodInfo.IsGenericMethodDefinition)
+            {
+                methodInfo = ReplaceGenericTypeArgumentsWithMarkerTypes(methodInfo);
+                if (methodInfo == null)
+                {
+                    // this happens when there are constraints on the generic type parameters
+                    return typeof(Func<PSNonBindableType>);
+                }
+            }
+
+            var parameterInfos = methodInfo.GetParameters();
+            if (parameterInfos.Length > 16)
+            {
+                return typeof(Func<PSNonBindableType>);
+            }
+
+            var res = new Type[parameterInfos.Length + 1];
+            for (int i = 0; i < res.Length - 1; i++)
+            {
+                var parameterInfo = parameterInfos[i];
+                var parameterType = parameterInfo.ParameterType;
+                res[i] = GetPSMethodTypeProjection(parameterType,
+                    (parameterInfo.Attributes | ParameterAttributes.Out) == ParameterAttributes.Out);
+            }
+            var returnType = GetPSMethodTypeProjection(methodInfo.ReturnType);
+            res[parameterInfos.Length] = returnType;
+
+            try
+            {
+                return DelegateHelpers.MakeDelegate(res);
+            }
+            catch (TypeLoadException)
+            {
+                return typeof(Func<PSNonBindableType>);
+            }
+        }
+
+        private static Type GetPSMethodTypeProjection(Type type, bool isOut = false)
+        {
+            if (type == typeof(void))
+            {
+                return typeof(Unit);
+            }
+            if (type == typeof(TypedReference))
+            {
+                return typeof(PSTypedReference);
+            }
+            var resType = type.IsEnum ? typeof(PSEnum<>).MakeGenericType(type) : type;
+            if (resType.HasElementType) {
+                var psMethodTypeProjection = GetPSMethodTypeProjection(resType.GetElementType());
+                if (type.IsPointer)
+                {
+                    resType = typeof(PSPointer<>).MakeGenericType(psMethodTypeProjection);
+                }
+                if (type.IsByRef)
+                {
+                    resType = isOut ? typeof(PSOutParameter<>).MakeGenericType(psMethodTypeProjection) : typeof(PSReference<>).MakeGenericType(psMethodTypeProjection);
+                }
+            }
+
+            return resType;
+        }
+
+        internal static bool MatchesPSMethodProjectedType(Type targetType, Type projectedSourceType, bool testAssignment = false, bool isOut = false)
+        {
+            var sourceType = projectedSourceType;
+            if (targetType.IsByRef || targetType.IsPointer)
+            {
+                if (!projectedSourceType.IsGenericType) return false;
+                var defType = projectedSourceType.GetGenericTypeDefinition();
+                if (targetType.IsByRef && defType == (isOut ? typeof(PSOutParameter<>) : typeof(PSReference<>))
+                    || targetType.IsPointer && defType == typeof(PSPointer<>))
+                {
+                    return MatchesPSMethodProjectedType(targetType.GetElementType(),
+                        projectedSourceType.GenericTypeArguments[0], testAssignment, isOut);
+                }
+            }
+            if (targetType.IsEnum)
+            {
+                if (sourceType.IsGenericType && sourceType.GetGenericTypeDefinition() != typeof(PSEnum<>))
+                {
+                    return false;
+                }
+                sourceType = sourceType.GenericTypeArguments[0];
+            }
+
+            if (targetType == typeof(void) && sourceType == typeof(Unit))
+            {
+                return true;
+            }
+            if (targetType == typeof(TypedReference) && sourceType == typeof(PSTypedReference))
+            {
+                return true;
+            }
+            if (testAssignment)
+            {
+                return targetType.IsAssignableFrom(sourceType);
+            }
+            return targetType == sourceType;
+        }
+
+        private static MethodInfo ReplaceGenericTypeArgumentsWithMarkerTypes(MethodInfo methodInfo)
+        {
+            if (!methodInfo.ContainsGenericParameters)
+            {
+                return methodInfo;
+            }
+
+            var genArgs = methodInfo.GetGenericArguments();
+            var concrete = new Type[genArgs.Length];
+            for (int i = 0; i < genArgs.Length; i++)
+            {
+                var genArg = genArgs[i];
+                if (genArg.GetGenericParameterConstraints().Length != 0)
+                {
+                    return null;
+                }
+                var gpa = genArg.GenericParameterAttributes;
+                concrete[i] = (gpa & GenericParameterAttributes.NotNullableValueTypeConstraint) == GenericParameterAttributes.NotNullableValueTypeConstraint
+                    ? PSGenericValueType.GetGenericType(i)
+                    : PSGenericType.GetGenericType(i);
+            }
+            return methodInfo.MakeGenericMethod(concrete);
+        }
+
+        private static Func<string, DotNetAdapter, object, object, bool, bool, PSMethod> CreatePSMethodConstructor(MethodInformation[] methods)
+        {
+            var types = new Type[methods.Length];
+            for (int i = 0; i < methods.Length; i++)
+            {
+                var mb = methods[i].method;
+
+                if (mb is MethodInfo mi)
+                {
+                    types[i] = GetMethodGroupType(mi);
+                }
+                else
+                {
+                    types[i] = typeof(Unit);
+                }
+            }
+            var methodGroupType =  CreateMethodGroup(types, 0, types.Length);
+            Type psMethodType = typeof(PSMethod<>).MakeGenericType(methodGroupType);
+            var delegateType = typeof(Func<string, DotNetAdapter, object, object, bool, bool, PSMethod>);
+            return (Func<string, DotNetAdapter, object, object, bool, bool, PSMethod>)Delegate.CreateDelegate(delegateType, psMethodType.GetMethod("Create", BindingFlags.NonPublic|BindingFlags.Static));
+        }
+
+        private static Type CreateMethodGroup(Type[] sourceTypes, int start, int count)
+        {
+            var types = sourceTypes;
+            if (count != sourceTypes.Length)
+            {
+                types = new Type[count];
+                Array.Copy(sourceTypes, start, types, 0, count);
+            }
+
+            switch (count)
+            {
+                case 1: return typeof(MethodGroup<>).MakeGenericType(types);
+                case 2: return typeof(MethodGroup<,>).MakeGenericType(types);
+                case 3: return typeof(MethodGroup<,>).MakeGenericType(types[0], CreateMethodGroup(types, 1, 2));
+                case 4: return typeof(MethodGroup<,,,>).MakeGenericType(types);
+                case int i when i < 8: return typeof(MethodGroup<,,,>).MakeGenericType(types[0], types[1], types[2], CreateMethodGroup(types, 3, i - 3));
+                case 8: return typeof(MethodGroup<,,,,,,,>).MakeGenericType(types);
+                case int i when i < 16: return typeof(MethodGroup<,,,,,,,>).MakeGenericType(types[0], types[1], types[2], types[3], types[4], types[5], types[6], CreateMethodGroup(types, 7, i - 7));
+                case 16: return typeof(MethodGroup<,,,,,,,,,,,,,,,>).MakeGenericType(types);
+                case int i when i < 32: return typeof(MethodGroup<,,,,,,,,,,,,,,,>).MakeGenericType(types[0], types[1], types[2], types[3], types[4], types[5], types[6], types[7], types[8], types[9], types[10], types[11], types[12], types[13], types[14], CreateMethodGroup(types, 15, i - 15));
+                case 32: return typeof(MethodGroup<,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,>).MakeGenericType(types);
+                default:
+                    return typeof(MethodGroup<,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,>).MakeGenericType(types[0], types[1], types[2], types[3], types[4], types[5], types[6], types[7], types[8], types[9], types[10], types[11], types[12], types[13], types[14], types[15], types[16], types[17], types[18], types[19], types[20], types[21], types[22], types[23], types[24], types[25], types[26], types[27], types[28], types[29], types[30], CreateMethodGroup(sourceTypes, start + 31, count - 31));
+            }
+        }
     }
+
+    class PSOutParameter<T> { private PSOutParameter() { }}
+
+    abstract class PSNonBindableType { }
+
+    abstract class PSGenericType
+    {
+        public static Type GetGenericType(int i)
+        {
+            switch (i)
+            {
+                case 0: return typeof(PSGenericType0);
+                case 1: return typeof(PSGenericType1);
+                case 2: return typeof(PSGenericType2);
+                case 3: return typeof(PSGenericType3);
+                case 4: return typeof(PSGenericType4);
+                case 5: return typeof(PSGenericType5);
+                case 6: return typeof(PSGenericType6);
+                case 7: return typeof(PSGenericType7);
+                case 8: return typeof(PSGenericType8);
+                case 9: return typeof(PSGenericType9);
+                case 10: return typeof(PSGenericType10);
+                case 11: return typeof(PSGenericType11);
+                case 12: return typeof(PSGenericType12);
+                case 13: return typeof(PSGenericType13);
+                case 14: return typeof(PSGenericType14);
+                case 15: return typeof(PSGenericType15);
+                case 16: return typeof(PSGenericType16);
+                default:
+                    return typeof(PSGenericType<>).MakeGenericType(GetGenericType(i - 1));
+            }
+        }
+    }
+
+    class PSGenericType0 : PSGenericType { internal PSGenericType0() { } }
+    class PSGenericType1 : PSGenericType { internal PSGenericType1() { } }
+    class PSGenericType2 : PSGenericType { internal PSGenericType2() { } }
+    class PSGenericType3 : PSGenericType { internal PSGenericType3() { } }
+    class PSGenericType4 : PSGenericType { internal PSGenericType4() { } }
+    class PSGenericType5 : PSGenericType { internal PSGenericType5() { } }
+    class PSGenericType6 : PSGenericType { internal PSGenericType6() { } }
+    class PSGenericType7 : PSGenericType { internal PSGenericType7() { } }
+    class PSGenericType8 : PSGenericType { internal PSGenericType8() { } }
+    class PSGenericType9 : PSGenericType { internal PSGenericType9() { } }
+    class PSGenericType10 : PSGenericType { internal PSGenericType10() { } }
+    class PSGenericType11 : PSGenericType { internal PSGenericType11() { } }
+    class PSGenericType12 : PSGenericType { internal PSGenericType12() { } }
+    class PSGenericType13 : PSGenericType { internal PSGenericType13() { } }
+    class PSGenericType14 : PSGenericType { internal PSGenericType14() { } }
+    class PSGenericType15 : PSGenericType { internal PSGenericType15() { } }
+    class PSGenericType16 : PSGenericType { internal PSGenericType16() { } }
+
+    class PSGenericType<T> : PSGenericType { internal PSGenericType() { } }
+
+    struct PSGenericValueType
+    {
+        internal static Type GetGenericType(int i)
+        {
+            switch (i)
+            {
+                case 0: return typeof(PSGenericValueType0);
+                case 1: return typeof(PSGenericValueType1);
+                case 2: return typeof(PSGenericValueType2);
+                case 3: return typeof(PSGenericValueType3);
+                case 4: return typeof(PSGenericValueType4);
+                case 5: return typeof(PSGenericValueType5);
+                case 6: return typeof(PSGenericValueType6);
+                case 7: return typeof(PSGenericValueType7);
+                case 8: return typeof(PSGenericValueType8);
+                case 9: return typeof(PSGenericValueType9);
+                case 10: return typeof(PSGenericValueType10);
+                case 11: return typeof(PSGenericValueType11);
+                case 12: return typeof(PSGenericValueType12);
+                case 13: return typeof(PSGenericValueType13);
+                case 14: return typeof(PSGenericValueType14);
+                case 15: return typeof(PSGenericValueType15);
+                case 16: return typeof(PSGenericValueType16);
+                default:
+                    return typeof(PSGenericValueType<>).MakeGenericType(GetGenericType(i - 1));
+            }
+        }
+    }
+
+    struct PSGenericValueType0 { internal int value; }
+    struct PSGenericValueType1 { internal int value; }
+    struct PSGenericValueType2 { internal int value; }
+    struct PSGenericValueType3 { internal int value; }
+    struct PSGenericValueType4 { internal int value; }
+    struct PSGenericValueType5 { internal int value; }
+    struct PSGenericValueType6 { internal int value; }
+    struct PSGenericValueType7 { internal int value; }
+    struct PSGenericValueType8 { internal int value; }
+    struct PSGenericValueType9 { internal int value; }
+    struct PSGenericValueType10 { internal int value; }
+    struct PSGenericValueType11 { internal int value; }
+    struct PSGenericValueType12 { internal int value; }
+    struct PSGenericValueType13 { internal int value; }
+    struct PSGenericValueType14 { internal int value; }
+    struct PSGenericValueType15 { internal int value; }
+    struct PSGenericValueType16 { internal int value; }
+
+    struct PSGenericValueType<T> { internal int value; }
+
+    struct PSEnum<T> { }
+
+    struct PSPointer<T> { }
+
+    struct PSTypedReference { }
+
+    internal abstract class MethodGroup { }
+    internal class MethodGroup<T1> : MethodGroup { }
+    internal class MethodGroup<T1, T2> : MethodGroup { }
+    internal class MethodGroup<T1, T2, T3, T4> : MethodGroup { }
+    internal class MethodGroup<T1, T2, T3, T4, T5, T6, T7, T8> : MethodGroup { }
+    internal class MethodGroup<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16> : MethodGroup { }
+    internal class MethodGroup<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32> : MethodGroup { }
+
+    class Unit
+    {
+        private Unit() { }
+    }
+
+    internal struct PSMethodSignatureEnumerator : IEnumerator<Type>
+    {
+        private int _currentIndex;
+        private readonly Type _t;
+
+        internal PSMethodSignatureEnumerator(Type t)
+        {
+            Diagnostics.Assert(t.IsSubclassOf(typeof(PSMethod)), "Must be a PSMethod<MethodGroup<>>");
+            _t = t.GenericTypeArguments[0];
+            Current = null;
+            _currentIndex = -1;
+        }
+
+        public bool MoveNext()
+        {
+            _currentIndex++;
+            return MoveNext(_t, _currentIndex);
+        }
+
+        bool MoveNext(Type type, int index)
+        {
+            var genericTypeArguments = type.GenericTypeArguments;
+            var length = genericTypeArguments.Length;
+            if (index < length - 1)
+            {
+                Current = genericTypeArguments[index];
+                return true;
+            }
+
+            var t = genericTypeArguments[length - 1];
+            if (t.IsSubclassOf(typeof(MethodGroup)))
+            {
+                var remaining = index - (length - 1);
+                return MoveNext(t, remaining);
+            }
+            if (index >= genericTypeArguments.Length)
+            {
+                Current = null;
+                return false;
+            }
+            Current = t;
+            return true;
+        }
+
+        public void Reset()
+        {
+            _currentIndex = -1;
+            Current = null;
+        }
+
+        public Type Current { get; private set; }
+
+        object IEnumerator.Current => Current;
+
+        public void Dispose()
+        {
+        }
+    }
+
+    internal sealed class PSMethod<T> : PSMethod
+    {
+        public override PSMemberInfo Copy()
+        {
+            PSMethod member = new PSMethod<T>(this.name, this._adapter, this.baseObject, this.adapterData, this.IsSpecial, this.IsHidden);
+            CloneBaseProperties(member);
+            return member;
+        }
+
+        internal PSMethod(string name, Adapter adapter, object baseObject, object adapterData)
+            : base(name, adapter, baseObject, adapterData) { }
+        internal PSMethod(string name, Adapter adapter, object baseObject, object adapterData, bool isSpecial, bool isHidden)
+            : base(name, adapter, baseObject, adapterData, isSpecial, isHidden) { }
+
+        /// <summary>
+        /// Helper factory function since we cannot bind a delegate to a ConstructorInfo.
+        /// </summary>
+        internal static PSMethod<T> Create(string name, Adapter adapter, object baseObject, object adapterData, bool isSpecial, bool isHidden)
+        {
+            return new PSMethod<T>(name, adapter, baseObject, adapterData, isSpecial, isHidden);
+        }
+    }
+
 
     /// <summary>
     /// Used to access parameterized properties from the BaseObject
@@ -2687,7 +3068,7 @@ namespace System.Management.Automation
         internal object baseObject;
 
         /// <summary>
-        /// Constructs this parameterized proprerty
+        /// Constructs this parameterized property
         /// </summary>
         /// <param name="name">name of the property</param>
         /// <param name="adapter">adapter used in DoGetMethod</param>
@@ -2974,7 +3355,7 @@ namespace System.Management.Automation
         internal bool inheritMembers = true;
 
         /// <summary>
-        /// Gets a flag indicating whether the memberset will inherit members of the memberset 
+        /// Gets a flag indicating whether the memberset will inherit members of the memberset
         /// of the same name in the "parent" class.
         /// </summary>
         public bool InheritMembers
@@ -3095,7 +3476,7 @@ namespace System.Management.Automation
     /// <summary>
     /// This MemberSet is used internally to represent the memberset for properties
     /// PSObject, PSBase, PSAdapted members of a PSObject. Having a specialized
-    /// memberset enables delay loading the members for these members. This saves 
+    /// memberset enables delay loading the members for these members. This saves
     /// time loading the members of a PSObject.
     /// </summary>
     /// <remarks>
@@ -3175,7 +3556,7 @@ namespace System.Management.Automation
 
         #endregion
 
-        #region  Private Methods
+        #region Private Methods
 
         private void GenerateInternalMembersFromBase()
         {
@@ -3501,7 +3882,7 @@ namespace System.Management.Automation
 
     #endregion PSMemberInfo
 
-    #region Member collection classes and its auxilliary classes
+    #region Member collection classes and its auxiliary classes
 
     /// <summary>
     /// /// This class is used in PSMemberInfoInternalCollection and ReadOnlyPSMemberInfoCollection
@@ -3594,7 +3975,7 @@ namespace System.Management.Automation
         /// </summary>
         /// <param name="member">member to be added</param>
         /// <param name="preValidated">flag to indicate that validation has already been done
-        ///     on this new member.  Use only when you can guarantee that the input will not 
+        ///     on this new member.  Use only when you can guarantee that the input will not
         ///     cause any of the errors normally caught by this method.</param>
         /// <exception cref="ExtendedTypeSystemException">
         ///     When:
@@ -3684,7 +4065,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Gets the specific enumerator for this collection. 
+        /// Gets the specific enumerator for this collection.
         /// </summary>
         /// <returns>the enumerator for this collection</returns>
         public abstract IEnumerator<T> GetEnumerator();
@@ -3775,7 +4156,7 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Gets the specific enumerator for this collection. 
+        /// Gets the specific enumerator for this collection.
         /// </summary>
         /// <returns>the enumerator for this collection</returns>
         public virtual IEnumerator<T> GetEnumerator()
@@ -3857,7 +4238,7 @@ namespace System.Management.Automation
         /// </summary>
         /// <param name="member">member to be added</param>
         /// <param name="preValidated">flag to indicate that validation has already been done
-        ///     on this new member.  Use only when you can guarantee that the input will not 
+        ///     on this new member.  Use only when you can guarantee that the input will not
         ///     cause any of the errors normally caught by this method.</param>
         /// <exception cref="ExtendedTypeSystemException">when a member by this name is already present</exception>
         /// <exception cref="ArgumentException">for invalid arguments</exception>
@@ -4239,7 +4620,7 @@ namespace System.Management.Automation
         /// </summary>
         /// <param name="member">member to be added</param>
         /// <exception cref="ExtendedTypeSystemException">
-        ///     When 
+        ///     When
         ///         member is an PSProperty or PSMethod
         ///         adding a member to a MemberSet with a reserved name
         ///         adding a member with a reserved member name or
@@ -4258,10 +4639,10 @@ namespace System.Management.Automation
         /// </summary>
         /// <param name="member">member to be added</param>
         /// <param name="preValidated">flag to indicate that validation has already been done
-        ///     on this new member.  Use only when you can guarantee that the input will not 
+        ///     on this new member.  Use only when you can guarantee that the input will not
         ///     cause any of the errors normally caught by this method.</param>
         /// <exception cref="ExtendedTypeSystemException">
-        ///     When 
+        ///     When
         ///         member is an PSProperty or PSMethod
         ///         adding a member to a MemberSet with a reserved name
         ///         adding a member with a reserved member name or
@@ -4326,10 +4707,10 @@ namespace System.Management.Automation
         /// </summary>
         /// <param name="member">member to be added</param>
         /// <param name="preValidated">flag to indicate that validation has already been done
-        ///    on this new member.  Use only when you can guarantee that the input will not 
+        ///    on this new member.  Use only when you can guarantee that the input will not
         ///    cause any of the errors normally caught by this method.</param>
         /// <exception cref="ExtendedTypeSystemException">
-        ///     When 
+        ///     When
         ///         adding a member with a reserved member name or
         ///         adding a member with a type not compatible with this collection
         ///         a member with this name already exists
@@ -4436,7 +4817,7 @@ namespace System.Management.Automation
         /// Method which checks if the <paramref name="name"/> is reserved and if so
         /// it will ensure that the particular reserved member is loaded into the
         /// objects member collection.
-        /// 
+        ///
         /// Caller should ensure that name is not null or empty.
         /// </summary>
         /// <param name="name">
@@ -4532,7 +4913,7 @@ namespace System.Management.Automation
                     delegateOwner = PSObject.AsPSObject(delegateOwner);
                     foreach (CollectionEntry<T> collection in Collections)
                     {
-                        Diagnostics.Assert(delegateOwner != null, "all integrating collections with non emtpty collections have an associated PSObject");
+                        Diagnostics.Assert(delegateOwner != null, "all integrating collections with non empty collections have an associated PSObject");
                         T memberAsT = collection.GetMember((PSObject)delegateOwner, name);
                         if (memberAsT != null)
                         {
@@ -4718,7 +5099,7 @@ namespace System.Management.Automation
             private PSMemberInfoInternalCollection<S> _allMembers;
 
             /// <summary>
-            /// Constructs this instance to enumerate over  members
+            /// Constructs this instance to enumerate over members
             /// </summary>
             /// <param name="integratingCollection">members we are enumerating</param>
             internal Enumerator(PSMemberInfoIntegratingCollection<S> integratingCollection)
@@ -4812,7 +5193,7 @@ namespace System.Management.Automation
         }
     }
 
-    #endregion Member collection classes and its auxilliary classes
+    #endregion Member collection classes and its auxiliary classes
 }
 
 #pragma warning restore 56503

@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections;
@@ -162,7 +162,7 @@ namespace System.Management.Automation
 
                 if (cpi.ArgumentSplatted)
                 {
-                    foreach (var splattedCpi in Splat(cpi.ArgumentValue, cpi.ArgumentExtent))
+                    foreach (var splattedCpi in Splat(cpi.ArgumentValue, cpi.ArgumentAst))
                     {
                         commandProcessor.AddParameter(splattedCpi);
                     }
@@ -293,7 +293,7 @@ namespace System.Management.Automation
             return commandProcessor;
         }
 
-        internal static IEnumerable<CommandParameterInternal> Splat(object splattedValue, IScriptExtent splatExtent)
+        internal static IEnumerable<CommandParameterInternal> Splat(object splattedValue, Ast splatAst)
         {
             splattedValue = PSObject.Base(splattedValue);
             IDictionary splattedTable = splattedValue as IDictionary;
@@ -306,8 +306,8 @@ namespace System.Management.Automation
                     string parameterText = GetParameterText(parameterName);
 
                     yield return CommandParameterInternal.CreateParameterWithArgument(
-                        splatExtent, parameterName, parameterText,
-                        splatExtent, parameterValue, false);
+                        splatAst, parameterName, parameterText,
+                        splatAst, parameterValue, false);
                 }
             }
             else
@@ -317,17 +317,17 @@ namespace System.Management.Automation
                 {
                     foreach (object obj in enumerableValue)
                     {
-                        yield return SplatEnumerableElement(obj, splatExtent);
+                        yield return SplatEnumerableElement(obj, splatAst);
                     }
                 }
                 else
                 {
-                    yield return SplatEnumerableElement(splattedValue, splatExtent);
+                    yield return SplatEnumerableElement(splattedValue, splatAst);
                 }
             }
         }
 
-        private static CommandParameterInternal SplatEnumerableElement(object splattedArgument, IScriptExtent splatExtent)
+        private static CommandParameterInternal SplatEnumerableElement(object splattedArgument, Ast splatAst)
         {
             var psObject = splattedArgument as PSObject;
             if (psObject != null)
@@ -336,11 +336,11 @@ namespace System.Management.Automation
                 var baseObj = psObject.BaseObject;
                 if (prop != null && prop.Value is string && baseObj is string)
                 {
-                    return CommandParameterInternal.CreateParameter(splatExtent, (string)prop.Value, (string)baseObj);
+                    return CommandParameterInternal.CreateParameter((string)prop.Value, (string)baseObj, splatAst);
                 }
             }
 
-            return CommandParameterInternal.CreateArgument(splatExtent, splattedArgument);
+            return CommandParameterInternal.CreateArgument(splattedArgument, splatAst);
         }
 
         private static string GetParameterText(string parameterName)
@@ -403,11 +403,33 @@ namespace System.Management.Automation
 
                 CommandProcessorBase commandProcessor = null;
                 CommandRedirection[] commandRedirection = null;
+
                 for (int i = 0; i < pipeElements.Length; i++)
                 {
                     commandRedirection = commandRedirections != null ? commandRedirections[i] : null;
                     commandProcessor = AddCommand(pipelineProcessor, pipeElements[i], pipeElementAsts[i],
                                                   commandRedirection, context);
+                }
+
+                var cmdletInfo = commandProcessor?.CommandInfo as CmdletInfo;
+                if (cmdletInfo?.ImplementingType == typeof(OutNullCommand))
+                {
+                    var commandsCount = pipelineProcessor.Commands.Count;
+                    if (commandsCount == 1)
+                    {
+                        // Out-Null is the only command, bail without running anything
+                        return;
+                    }
+
+                    // Out-Null is the last command, rewrite command before Out-Null to a null pipe, but
+                    // only if it didn't redirect anything, e.g. `Get-Stuff > o.txt | Out-Null`
+                    var nextToLastCommand = pipelineProcessor.Commands[commandsCount - 2];
+                    if (!nextToLastCommand.CommandRuntime.OutputPipe.IsRedirected)
+                    {
+                        pipelineProcessor.Commands.RemoveAt(commandsCount - 1);
+                        commandProcessor = nextToLastCommand;
+                        nextToLastCommand.CommandRuntime.OutputPipe = new Pipe {NullPipe = true};
+                    }
                 }
 
                 if (commandProcessor != null && !commandProcessor.CommandRuntime.OutputPipe.IsRedirected)
@@ -431,6 +453,83 @@ namespace System.Management.Automation
                 try
                 {
                     pipelineProcessor.SynchronousExecuteEnumerate(input);
+                }
+                finally
+                {
+                    context.PopPipelineProcessor(false);
+                }
+            }
+            finally
+            {
+                context.QuestionMarkVariableValue = !pipelineProcessor.ExecutionFailed;
+                pipelineProcessor.Dispose();
+            }
+        }
+
+        internal static void InvokePipelineInBackground(
+                                            PipelineAst pipelineAst,
+                                            FunctionContext funcContext)
+        {
+            PipelineProcessor pipelineProcessor = new PipelineProcessor();
+            ExecutionContext context = funcContext._executionContext;
+            Pipe outputPipe = funcContext._outputPipe;
+
+            try
+            {
+                if (context.Events != null)
+                {
+                    context.Events.ProcessPendingActions();
+                }
+
+                CommandProcessorBase commandProcessor = null;
+
+                // For background jobs rewrite the pipeline as a Start-Job command
+                var scriptblockBodyString = pipelineAst.Extent.Text;
+                var pipelineOffset = pipelineAst.Extent.StartOffset;
+                var variables = pipelineAst.FindAll(x => x is VariableExpressionAst, true);
+                // Used to make sure that the job runs in the current directory
+                const string cmdPrefix = @"Microsoft.PowerShell.Management\Set-Location -LiteralPath $using:pwd ; ";
+                // Minimize allocations by initializing the stringbuilder to the size of the source string + prefix + space for ${using:} * 2
+                System.Text.StringBuilder updatedScriptblock = new System.Text.StringBuilder(cmdPrefix.Length + scriptblockBodyString.Length + 18);
+                updatedScriptblock.Append(cmdPrefix);
+                int position = 0;
+                // Prefix variables in the scriptblock with $using:
+                foreach (var v in variables)
+                {
+                    var vName = ((VariableExpressionAst) v).VariablePath.UserPath;
+                    // Skip variables that don't exist
+                    if (funcContext._executionContext.EngineSessionState.GetVariable(vName) == null)
+                        continue;
+                    // Skip PowerShell magic variables
+                    if (Regex.Match(vName,
+                            "^(global:){0,1}(PID|PSVersionTable|PSEdition|PSHOME|HOST|TRUE|FALSE|NULL)$",
+                                RegexOptions.IgnoreCase|RegexOptions.CultureInvariant).Success == false
+                    )
+                    {
+                        updatedScriptblock.Append(scriptblockBodyString.Substring(position, v.Extent.StartOffset - pipelineOffset - position));
+                        updatedScriptblock.Append("${using:");
+                        updatedScriptblock.Append(CodeGeneration.EscapeVariableName(vName));
+                        updatedScriptblock.Append('}');
+                        position = v.Extent.EndOffset - pipelineOffset;
+                    }
+                }
+                updatedScriptblock.Append(scriptblockBodyString.Substring(position));
+                var sb = ScriptBlock.Create(updatedScriptblock.ToString());
+                var commandInfo = new CmdletInfo("Start-Job", typeof(StartJobCommand));
+                commandProcessor = context.CommandDiscovery.LookupCommandProcessor(
+                    commandInfo, CommandOrigin.Internal, false, context.EngineSessionState);
+                var parameter = CommandParameterInternal.CreateParameterWithArgument(
+                    /*parameterAst*/pipelineAst, "ScriptBlock", null,
+                    /*argumentAst*/pipelineAst, sb,
+                    false);
+                commandProcessor.AddParameter(parameter);
+                pipelineProcessor.Add(commandProcessor);
+                pipelineProcessor.LinkPipelineSuccessOutput(outputPipe ?? new Pipe(new List<object>()));
+
+                context.PushPipelineProcessor(pipelineProcessor);
+                try
+                {
+                    pipelineProcessor.SynchronousExecuteEnumerate(AutomationNull.Value);
                 }
                 finally
                 {
@@ -520,7 +619,7 @@ namespace System.Management.Automation
                     var locals = MutableTuple.MakeTuple(Compiler.DottedLocalsTupleType,
                                                         Compiler.DottedLocalsNameIndexMap);
                     object[] remainingArgs =
-                        ScriptBlock.BindArgumentsForScripblockInvoke(
+                        ScriptBlock.BindArgumentsForScriptblockInvoke(
                             (RuntimeDefinedParameter[])scriptBlock.RuntimeDefinedParameters.Data,
                             args, context, false, null, locals);
                     locals.SetAutomaticVariable(AutomaticVariable.Args, remainingArgs, context);
@@ -547,7 +646,7 @@ namespace System.Management.Automation
                         var exprAst = (ExpressionAst)commandElement;
                         var argument = Compiler.GetExpressionValue(exprAst, isTrusted, context);
                         var splatting = (exprAst is VariableExpressionAst && ((VariableExpressionAst)exprAst).Splatted);
-                        commandParameters.Add(CommandParameterInternal.CreateArgument(exprAst.Extent, argument, splatting));
+                        commandParameters.Add(CommandParameterInternal.CreateArgument(argument, exprAst, splatting));
                     }
 
                     var redirections = new List<CommandRedirection>();
@@ -576,7 +675,7 @@ namespace System.Management.Automation
 
                 // For nicer error reporting, we want to make it look like errors in the steppable pipeline point back to
                 // the caller of the proxy.  We don't want errors pointing to the script block created in the proxy.
-                // Here we assume (in a safe way) that GetSteppablePipline is called from script.  If that isn't the case,
+                // Here we assume (in a safe way) that GetSteppablePipeline is called from script.  If that isn't the case,
                 // we won't crash, but the error reporting might be a little misleading.
                 var callStack = context.Debugger.GetCallStack().ToArray();
                 if (callStack.Length > 0 && Regex.IsMatch(callStack[0].Position.Text, "GetSteppablePipeline", RegexOptions.IgnoreCase))
@@ -610,14 +709,14 @@ namespace System.Management.Automation
 
             if (argumentAst == null)
             {
-                return CommandParameterInternal.CreateParameter(errorPos, commandParameterAst.ParameterName, errorPos.Text);
+                return CommandParameterInternal.CreateParameter(commandParameterAst.ParameterName, errorPos.Text, commandParameterAst);
             }
 
             object argumentValue = Compiler.GetExpressionValue(argumentAst, isTrusted, context);
             bool spaceAfterParameter = (errorPos.EndLineNumber != argumentAst.Extent.StartLineNumber ||
                                         errorPos.EndColumnNumber != argumentAst.Extent.StartColumnNumber);
-            return CommandParameterInternal.CreateParameterWithArgument(errorPos, commandParameterAst.ParameterName,
-                                                                        errorPos.Text, argumentAst.Extent, argumentValue,
+            return CommandParameterInternal.CreateParameterWithArgument(commandParameterAst, commandParameterAst.ParameterName,
+                                                                        errorPos.Text, argumentAst, argumentValue,
                                                                         spaceAfterParameter);
         }
 
@@ -671,9 +770,8 @@ namespace System.Management.Automation
                     exitCode = ParserOps.ConvertTo<int>(exitCodeObj, PositionUtilities.EmptyExtent);
                 }
             }
-            catch (Exception e) // ignore non-severe exceptions
+            catch (Exception) // ignore non-severe exceptions
             {
-                CommandProcessorBase.CheckForSevereException(e);
             }
 
             return new ExitException(exitCode);
@@ -696,7 +794,7 @@ namespace System.Management.Automation
         internal static void Nop() { }
     }
 
-    #region Redirections
+#region Redirections
 
     internal abstract class CommandRedirection
     {
@@ -899,7 +997,7 @@ namespace System.Management.Automation
             {
                 case RedirectionStream.All:
                     // Since a temp output pipe is going to be used, we should pass along the error and warning variable list.
-                    // Normally, context.CurrentCommandProcessor will not be null. But in legacy DRTs from ParserTest.cs, 
+                    // Normally, context.CurrentCommandProcessor will not be null. But in legacy DRTs from ParserTest.cs,
                     // a scriptblock may be invoked through 'DoInvokeReturnAsIs' using .NET reflection. In that case,
                     // context.CurrentCommandProcessor will be null. We don't try passing along variable lists in such case.
                     if (context.CurrentCommandProcessor != null)
@@ -1017,16 +1115,16 @@ namespace System.Management.Automation
             // Unicode is still the default, but now may be overridden
 
             var cpi = CommandParameterInternal.CreateParameterWithArgument(
-                PositionUtilities.EmptyExtent, "Filepath", "-Filepath:",
-                PositionUtilities.EmptyExtent, File,
+                /*parameterAst*/null, "Filepath", "-Filepath:",
+                /*argumentAst*/null, File,
                 false);
             commandProcessor.AddParameter(cpi);
 
             if (this.Appending)
             {
                 cpi = CommandParameterInternal.CreateParameterWithArgument(
-                    PositionUtilities.EmptyExtent, "Append", "-Append:",
-                    PositionUtilities.EmptyExtent, true,
+                    /*parameterAst*/null, "Append", "-Append:",
+                    /*argumentAst*/null, true,
                     false);
                 commandProcessor.AddParameter(cpi);
             }
@@ -1060,6 +1158,23 @@ namespace System.Management.Automation
             return new Pipe(context, PipelineProcessor);
         }
 
+        /// <summary>
+        /// After file redirection is done, we need to call 'DoComplete' on the pipeline processor,
+        /// so that 'EndProcessing' of Out-File can be called to wrap up the file write operation.
+        /// </summary>
+        /// <remark>
+        /// 'StartStepping' is called after creating the pipeline processor.
+        /// 'Step' is called when an object is added to the pipe created with the pipeline processor.
+        /// </remark>
+        internal void CallDoCompleteForExpression()
+        {
+            // The pipe returned from 'GetRedirectionPipe' could be a NullPipe
+            if (PipelineProcessor != null)
+            {
+                PipelineProcessor.DoComplete();
+            }
+        }
+
         private bool _disposed;
 
         public void Dispose()
@@ -1085,7 +1200,7 @@ namespace System.Management.Automation
         }
     }
 
-    #endregion Redirections
+#endregion Redirections
 
     internal static class FunctionOps
     {
@@ -1103,8 +1218,6 @@ namespace System.Management.Automation
             }
             catch (Exception exception)
             {
-                CommandProcessorBase.CheckForSevereException(exception);
-
                 var rte = exception as RuntimeException;
                 if (rte == null)
                 {
@@ -1113,44 +1226,6 @@ namespace System.Management.Automation
 
                 InterpreterError.UpdateExceptionErrorRecordPosition(rte, functionDefinitionAst.Extent);
                 throw;
-            }
-        }
-
-        internal static void DefineWorkflows(ExecutionContext context, ScriptBlockAst scriptBlockAst)
-        {
-            ParseException parseErrors = null;
-
-            try
-            {
-                var converterInstance = Utils.GetAstToWorkflowConverterAndEnsureWorkflowModuleLoaded(context);
-                PSLanguageMode? languageMode = (context != null) ? context.LanguageMode : (PSLanguageMode?) null;
-                var workflows = converterInstance.CompileWorkflows(scriptBlockAst, context.EngineSessionState.Module, null, languageMode, out parseErrors);
-                foreach (var workflow in workflows)
-                {
-                    context.EngineSessionState.SetWorkflowRaw(workflow,
-                                                              context.EngineSessionState.CurrentScope.ScopeOrigin);
-                }
-            }
-            catch (Exception exception)
-            {
-                CommandProcessorBase.CheckForSevereException(exception);
-
-                var rte = exception as RuntimeException;
-                if (rte == null)
-                {
-                    throw ExceptionHandlingOps.ConvertToRuntimeException(exception, scriptBlockAst.Extent);
-                }
-
-                InterpreterError.UpdateExceptionErrorRecordPosition(rte, scriptBlockAst.Extent);
-                throw;
-            }
-
-            if (parseErrors != null && parseErrors.Errors != null)
-            {
-                CommandProcessorBase.CheckForSevereException(parseErrors);
-
-                InterpreterError.UpdateExceptionErrorRecordPosition(parseErrors, scriptBlockAst.Extent);
-                throw parseErrors;
             }
         }
     }
@@ -1240,66 +1315,173 @@ namespace System.Management.Automation
     {
         internal class CatchAll { }
 
-        internal static int FindMatchingHandler(MutableTuple tuple, RuntimeException rte, Type[] types, ExecutionContext context)
+        /// <summary>
+        /// Represent a handler search result
+        /// </summary>
+        private class HandlerSearchResult
         {
-            Exception exceptionToPass = rte;
-            Exception inner = rte.InnerException;
-            int handler = -1;
-            if (inner != null)
+            internal HandlerSearchResult()
             {
-                handler = FindMatchingHandlerByType(inner.GetType(), types);
-                exceptionToPass = inner;
+                Handler = -1;
+                Rank = int.MaxValue;
+                ExceptionToPass = null;
+                ErrorRecordToPass = null;
             }
 
-            // If no handler was found, or if the handler we found was the catch all handler,
-            // then look again, this time using the outer exception.  If we found the catch all,
-            // there may be a handler that catches outer but not inner.  Furthermore, rethrow
-            // should throw the original exception from a catchall, not the inner.
-            if (handler == -1 || types[handler].Equals(typeof(CatchAll)))
-            {
-                handler = FindMatchingHandlerByType(rte.GetType(), types);
-                exceptionToPass = rte;
-            }
-
-            // If we still didn't find a specific handler, we'll try unwrapping a few other of our exceptions:
-            //     ActionPreferenceStopException - to cover -ea stop
-            //         try { gci nosuchfile -ea stop } catch [System.Management.Automation.ItemNotFoundException] { 'caught' }
-            //     CmdletInvocationException - to cover cmdlets like Invoke-Expression
-            //
-            if ((handler == -1 || types[handler].Equals(typeof(CatchAll))))
-            {
-                var apse = rte as ActionPreferenceStopException;
-                if (apse != null)
-                {
-                    exceptionToPass = apse.ErrorRecord.Exception;
-                    if (exceptionToPass is RuntimeException)
-                    {
-                        return FindMatchingHandler(tuple, (RuntimeException)exceptionToPass, types, context);
-                    }
-
-                    if (exceptionToPass != null)
-                    {
-                        handler = FindMatchingHandlerByType(exceptionToPass.GetType(), types);
-                    }
-                }
-                else if (rte is CmdletInvocationException && inner != null)
-                {
-                    exceptionToPass = inner.InnerException;
-                    if (exceptionToPass != null)
-                    {
-                        handler = FindMatchingHandlerByType(exceptionToPass.GetType(), types);
-                    }
-                }
-            }
-
-            if (handler != -1)
-            {
-                var errorRecord = new ErrorRecord(rte.ErrorRecord, exceptionToPass);
-                tuple.SetAutomaticVariable(AutomaticVariable.Underbar, errorRecord, context);
-            }
-            return handler;
+            internal int Handler;
+            internal int Rank;
+            internal Exception ExceptionToPass;
+            internal ErrorRecord ErrorRecordToPass;
         }
 
+        /// <summary>
+        /// Rank the exception types based on how specific they are.
+        /// Smaller ranking number indicates more specific exception type.
+        /// </summary>
+        /// <remarks>
+        /// The ranking number for each type represent how many other
+        /// types from the array derive from it.
+        /// For example, 0 means no other types in the array derive from
+        /// the corresponding type, while 3 means there are 3 other types
+        /// in the array actually derive from the corresponding type.
+        /// 'CatchAll' is considered to be derived by all exception types.
+        /// </remarks>
+        private static int[] RankExceptionTypes(Type[] types)
+        {
+            int[] ranks = new int[types.Length];
+            int length = types.Length;
+
+            // If 'CatchAll' is specified, it must be the last catch block.
+            // Handle it specially. This can save a few iterations in the
+            // 'for' loop below, and also avoid some type comparisons.
+            if (types[length - 1].Equals(typeof(CatchAll)))
+            {
+                ranks[length - 1] = length - 1;
+                length = length - 1;
+            }
+
+            // For each type check if it's a sub-class of any types after it.
+            // The ordering of the type array guarantees the more specific type comes first.
+            for (int i = 0; i < length - 1; i++)
+            {
+                for (int j = i + 1; j < length; j++)
+                {
+                    if (types[i].IsSubclassOf(types[j]))
+                        ranks[j]++;
+                }
+            }
+
+            return ranks;
+        }
+
+        /// <summary>
+        /// Search for handler by the exception type and process the found result.
+        /// </summary>
+        private static void FindAndProcessHandler(Type[] types, int[] ranks,
+                                                  HandlerSearchResult current,
+                                                  Exception exception,
+                                                  ErrorRecord errorRecord)
+        {
+            Diagnostics.Assert(current != null, "Caller makes sure 'current' is not null.");
+            int handler = FindMatchingHandlerByType(exception.GetType(), types);
+
+            // If no handler was found, return without changing the current result.
+            if (handler == -1) { return; }
+
+            // New handler was found.
+            //  - If new-rank is less than current-rank -- meaning the new handler is more specific,
+            //    then we update the current result with it.
+            //  - If new-rank is more than current-rank -- meaning the new handler is less specific,
+            //    then we do NOT change the current result.
+            //  - If new-rank is equal to current-rank, we do NOT change the current result UNLESS the
+            //    current handler is catch-all. (This is to keep the original behavior -- prefer to use
+            //    the later found exception as the exception-to-pass-in if all exceptions result in the
+            //    catch-all handler.
+            int rank = ranks[handler];
+            if (rank < current.Rank ||
+                (rank == current.Rank && types[current.Handler].Equals(typeof(CatchAll)))
+               )
+            {
+                current.Handler = handler;
+                current.Rank = rank;
+                current.ExceptionToPass = exception;
+                current.ErrorRecordToPass = errorRecord;
+            }
+        }
+
+        /// <summary>
+        /// Find the matching handler for the caught exception
+        /// </summary>
+        internal static int FindMatchingHandler(MutableTuple tuple, RuntimeException rte, Type[] types, ExecutionContext context)
+        {
+            bool continueToSearch = false;
+            int[] ranks = RankExceptionTypes(types);
+            var current = new HandlerSearchResult();
+
+            do {
+                // Always assume no need to repeat the search for another interation
+                continueToSearch = false;
+                // The 'ErrorRecord' of the current RuntimeException would be passed to $_
+                ErrorRecord errorRecordToPass = rte.ErrorRecord;
+
+                Exception inner = rte.InnerException;
+                if (inner != null)
+                {
+                    FindAndProcessHandler(types, ranks, current, inner, errorRecordToPass);
+                }
+
+                // If no handler was found (rank = int.MaxValue), or if the handler we found was not
+                // the most specific one, then look again, this time using the outer exception.
+                // If we found a handler, but not one of the most specific ones (rank != 0), there may
+                // be a more specific handler that catches outer but not inner exception.
+                if (current.Rank > 0)
+                {
+                    FindAndProcessHandler(types, ranks, current, rte, errorRecordToPass);
+                }
+
+                // If we still didn't find one of the most specific handlers (rank != 0), we'll try unwrapping a few other of our exceptions:
+                //     ActionPreferenceStopException - to cover '-ea stop'
+                //         try { gci nosuchfile -ea stop } catch [System.Management.Automation.ItemNotFoundException] { 'caught' }
+                //     CmdletInvocationException - to cover cmdlets like Invoke-Expression
+                if (current.Rank > 0)
+                {
+                    var apse = rte as ActionPreferenceStopException;
+                    if (apse != null)
+                    {
+                        var exceptionToPass = apse.ErrorRecord.Exception;
+
+                        // If it's again a RuntimeException, we repeat the search using it
+                        rte = exceptionToPass as RuntimeException;
+                        if (rte != null)
+                        {
+                            continueToSearch = true;
+                        }
+                        else if (exceptionToPass != null)
+                        {
+                            FindAndProcessHandler(types, ranks, current, exceptionToPass, errorRecordToPass);
+                        }
+                    }
+                    else if (rte is CmdletInvocationException && inner != null)
+                    {
+                        if (inner.InnerException != null)
+                        {
+                            FindAndProcessHandler(types, ranks, current, inner.InnerException, errorRecordToPass);
+                        }
+                    }
+                }
+            } while (continueToSearch);
+
+            if (current.Handler != -1)
+            {
+                var errorRecord = new ErrorRecord(current.ErrorRecordToPass, current.ExceptionToPass);
+                tuple.SetAutomaticVariable(AutomaticVariable.Underbar, errorRecord, context);
+            }
+            return current.Handler;
+        }
+
+        /// <summary>
+        /// Find the matching handler by the exception type
+        /// </summary>
         private static int FindMatchingHandlerByType(Type exceptionType, Type[] types)
         {
             int i;
@@ -1352,8 +1534,6 @@ namespace System.Management.Automation
                 // Always unwrap TargetInvocationException.
                 exception = exception.InnerException;
             }
-
-            CommandProcessorBase.CheckForSevereException(exception);
 
             var rte = exception as RuntimeException;
             if (rte == null)
@@ -1538,8 +1718,8 @@ namespace System.Management.Automation
         /// <param name="context">The execution context</param>
         /// <returns>The preference the user selected</returns>
         /// <remarks>
-        /// Error action is decided by error action preference. If preferenc is inquire, we will
-        /// prompt user for their preference. 
+        /// Error action is decided by error action preference. If preference is inquire, we will
+        /// prompt user for their preference.
         /// </remarks>
         internal static ActionPreference QueryForAction(RuntimeException rte, string message, ExecutionContext context)
         {
@@ -1562,7 +1742,7 @@ namespace System.Management.Automation
         /// <param name="context">The execution context</param>
         /// <returns></returns>
         /// <remarks>
-        /// This method will allow user to enter suspend mode. 
+        /// This method will allow user to enter suspend mode.
         /// </remarks>
         internal static ActionPreference InquireForActionPreference(string message, ExecutionContext context)
         {
@@ -1756,8 +1936,6 @@ namespace System.Management.Automation
                 exception = exception.InnerException;
             }
 
-            CommandProcessorBase.CheckForSevereException(exception);
-
             // Win8: 178063. Allow flow control related exceptions for PowerShell hosting API
             if ((exception is FlowControlException ||
                 exception is ScriptCallDepthException ||
@@ -1850,7 +2028,6 @@ namespace System.Management.Automation
                     }
                     catch (Exception e)
                     {
-                        CommandProcessorBase.CheckForSevereException(e);
                         throw InterpreterError.NewInterpreterException(typeName, typeof(RuntimeException), errorPos,
                                                                        "TypeNotFoundWithMessage",
                                                                        ParserStrings.TypeNotFoundWithMessage,
@@ -1968,22 +2145,22 @@ namespace System.Management.Automation
         }
 
         /// <summary>
-        /// Add types to the current scope. 
+        /// Add types to the current scope.
         /// This method called at runtime after types are created at compile time.
         /// This method should be called for every ScriptBlockAst that defines types.
-        /// 
+        ///
         /// I.e.
-        /// 
+        ///
         /// class C1 {}
         /// function foo { class C2 {} }
-        /// 1..10 | % { foo }
-        /// 
+        /// 1..10 | ForEach-Object { foo }
+        ///
         /// DefinePowerShellTypes() would be called for two TypeDefinitionAsts at the same time and Types for C1 and C2 would be created at the same assembly.
-        /// AddPowerShellTypesToTheScope() would be called for root script first and then for foo\C2, once we call function foo. 
+        /// AddPowerShellTypesToTheScope() would be called for root script first and then for foo\C2, once we call function foo.
         /// Note that AddPowerShellTypesToTheScope() would be call on every foo call, 10 times.
-        /// 
+        ///
         /// This method also should be called for 'using module' statements. Then added types would have a different name.
-        /// 
+        ///
         /// </summary>
         /// <param name="types"></param>
         /// <param name="context"></param>
@@ -2237,7 +2414,7 @@ namespace System.Management.Automation
         /// </summary>
         /// <param name="enumerator">The enumerator over the collection to search</param>
         /// <param name="expressionSB">
-        /// A ScriptBlock where its result is treated as a boolean, or null to 
+        /// A ScriptBlock where its result is treated as a boolean, or null to
         /// return all collection objects with WhereOperatorSelectionMode.
         /// </param>
         /// <param name="selectionMode">
@@ -2436,7 +2613,7 @@ namespace System.Management.Automation
                 }
                 else if (selectionMode == WhereOperatorSelectionMode.Until)
                 {
-                    // no match so in the until case, we add the value until the count is reached 
+                    // no match so in the until case, we add the value until the count is reached
                     matches.Add(ie == null ? null : PSObject.AsPSObject(ie));
                     if (numberToReturn > 0 && matches.Count >= numberToReturn)
                     {
@@ -2488,8 +2665,8 @@ namespace System.Management.Automation
             var context = Runspace.DefaultRunspace.ExecutionContext;
 
             // If expression argument is a .Net type then convert the collection to that type
-            // if the target type is a collecton or array, then the result will be a collection of exactly
-            // that type. If the target type is not a collectiom type then return a generic collection of that type.
+            // if the target type is a collection or array, then the result will be a collection of exactly
+            // that type. If the target type is not a collection type then return a generic collection of that type.
             Type targetType = expression as Type;
             if (targetType != null)
             {
@@ -2524,7 +2701,7 @@ namespace System.Management.Automation
                         while (MoveNext(context, enumerator))
                         {
                             object current = Current(enumerator);
-                            // Let the PSObject method invocation mechanism take care of 
+                            // Let the PSObject method invocation mechanism take care of
                             // any required conversions, etc.
                             resultCollection.Add(current);
                         }
@@ -2539,7 +2716,7 @@ namespace System.Management.Automation
                     while (MoveNext(context, enumerator))
                     {
                         object current = Current(enumerator);
-                        // Let the PSObject method invocation mechanism take care of 
+                        // Let the PSObject method invocation mechanism take care of
                         // any required conversions, etc.
                         resultCollection.Add(current);
                     }
@@ -2585,7 +2762,7 @@ namespace System.Management.Automation
             }
             else
             {
-                // Deal with member gets, sets and invokes 
+                // Deal with member gets, sets and invokes
                 string name = ParserOps.ConvertTo<string>(expression, null);
                 var numArgs = arguments.Length;
                 var languageMode = context.LanguageMode;
@@ -2948,7 +3125,6 @@ namespace System.Management.Automation
             }
             catch (Exception e)
             {
-                CommandProcessorBase.CheckForSevereException(e);
                 throw new ExtendedTypeSystemException(
                     "ExceptionInGetEnumerator",
                     e,
@@ -3006,24 +3182,18 @@ namespace System.Management.Automation
         internal static IEnumerator GetCOMEnumerator(object obj)
         {
             object targetValue = PSObject.Base(obj);
-            try
-            {
-                IEnumerable enumerable = targetValue as IEnumerable;
-                if (enumerable != null)
-                {
-                    var enumerator = enumerable.GetEnumerator();
-                    if (enumerator != null)
-                    {
-                        return enumerator;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                CommandProcessorBase.CheckForSevereException(e);
-            }
 
-            return targetValue as IEnumerator ?? NonEnumerableObjectEnumerator.Create(obj);
+            // We use ComEnumerator to enumerate COM collections because the following code doesn't work in .NET Core
+            //   IEnumerable enumerable = targetValue as IEnumerable;
+            //   if (enumerable != null)
+            //   {
+            //       var enumerator = enumerable.GetEnumerator();
+            //       ...
+            //   }
+            // The call to 'GetEnumerator()' throws exception because COM is not supported in .NET Core.
+            // See https://github.com/dotnet/corefx/issues/19731 for more information.
+            // When COM support is back to .NET Core, we need to change back to the original implementation.
+            return ComEnumerator.Create(targetValue) ?? NonEnumerableObjectEnumerator.Create(obj);
         }
 
         internal static IEnumerator GetGenericEnumerator<T>(IEnumerable<T> enumerable)
@@ -3039,7 +3209,6 @@ namespace System.Management.Automation
             }
             catch (Exception e)
             {
-                CommandProcessorBase.CheckForSevereException(e);
                 throw new ExtendedTypeSystemException(
                     "ExceptionInGetEnumerator",
                     e,
@@ -3081,7 +3250,6 @@ namespace System.Management.Automation
             }
             catch (Exception e)
             {
-                CommandProcessorBase.CheckForSevereException(e);
                 throw InterpreterError.NewInterpreterExceptionWithInnerException(enumerator, typeof(RuntimeException),
                     null, "BadEnumeration", ParserStrings.BadEnumeration, e, e.Message);
             }
@@ -3112,7 +3280,6 @@ namespace System.Management.Automation
             }
             catch (Exception e)
             {
-                CommandProcessorBase.CheckForSevereException(e);
                 throw InterpreterError.NewInterpreterExceptionWithInnerException(enumerator, typeof(RuntimeException),
                     null, "BadEnumeration", ParserStrings.BadEnumeration, e, e.Message);
             }

@@ -1,7 +1,7 @@
 #pragma warning disable 1634, 1691
 
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 #pragma warning disable 1634, 1691
@@ -13,17 +13,12 @@ using System.Management.Automation.Internal;
 using System.Management.Automation.Security;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
-#if CORECLR
-// Use stub for 
-using Microsoft.PowerShell.CoreClr.Stubs;
-#endif
-
 using DWORD = System.UInt32;
 
 namespace System.Management.Automation
 {
     /// <summary>
-    /// Defines the options that control what data is embedded in the 
+    /// Defines the options that control what data is embedded in the
     /// signature blob
     /// </summary>
     ///
@@ -46,14 +41,14 @@ namespace System.Management.Automation
         AddFullCertificateChainExceptRoot,
 
         /// <summary>
-        /// Default: Embeds the entire certificate chain, except for the 
+        /// Default: Embeds the entire certificate chain, except for the
         /// root certificate.
         /// </summary>
         Default = AddFullCertificateChainExceptRoot
     }
 
     /// <summary>
-    /// Helper functions for signature functionality 
+    /// Helper functions for signature functionality
     /// </summary>
     internal static class SignatureHelper
     {
@@ -67,7 +62,7 @@ namespace System.Management.Automation
                           "tracer for SignatureHelper");
 
         /// <summary>
-        /// Sign a file 
+        /// Sign a file
         /// </summary>
         ///
         /// <param name="option"> option that controls what gets embedded in the signature blob  </param>
@@ -82,21 +77,21 @@ namespace System.Management.Automation
         /// algorithm to use. </param>
         ///
         /// <returns> Does not return a value </returns>
-        /// 
-        /// 
+        ///
+        ///
         /// <exception cref="System.ArgumentNullException">
         /// Thrown if argument fileName or certificate is null.
         /// </exception>
-        /// 
-        /// 
+        ///
+        ///
         /// <exception cref="System.ArgumentException">
         /// Thrown if
         /// -- argument fileName is empty OR
         /// -- the specified certificate is not suitable for
         ///    signing code
         /// </exception>
-        /// 
-        /// 
+        ///
+        ///
         /// <exception cref="System.Security.Cryptography.CryptographicException">
         /// This exception can be thrown if any cryptographic error occurs.
         /// It is not possible to know exactly what went wrong.
@@ -107,12 +102,12 @@ namespace System.Management.Automation
         ///  -- certificate password mismatch
         ///  -- etc
         /// </exception>
-        /// 
-        /// 
+        ///
+        ///
         /// <exception cref="System.IO.FileNotFoundException">
         /// Thrown if the file specified by argument fileName is not found
         /// </exception>
-        /// 
+        ///
         /// <remarks>  </remarks>
         ///
         [ArchitectureSensitive]
@@ -164,7 +159,7 @@ namespace System.Management.Automation
                 else
                 {
                     NativeMethods.CRYPT_OID_INFO oidInfo =
-                        ClrFacade.PtrToStructure<NativeMethods.CRYPT_OID_INFO>(oidPtr);
+                        Marshal.PtrToStructure<NativeMethods.CRYPT_OID_INFO>(oidPtr);
 
                     hashOid = oidInfo.pszOID;
                 }
@@ -182,9 +177,9 @@ namespace System.Management.Automation
 
             try
             {
-                // CryptUI is not documented either way, but does not 
-                // support empty strings for the timestamp server URL.  
-                // It expects null, only.  Instead, it randomly AVs if you 
+                // CryptUI is not documented either way, but does not
+                // support empty strings for the timestamp server URL.
+                // It expects null, only.  Instead, it randomly AVs if you
                 // try.
                 string timeStampServerUrlForCryptUI = null;
                 if (!String.IsNullOrEmpty(timeStampServerUrl))
@@ -221,7 +216,7 @@ namespace System.Management.Automation
 
                 if (si.pSignExtInfo != null)
                 {
-                    ClrFacade.DestroyStructure<NativeMethods.CRYPTUI_WIZ_DIGITAL_SIGN_EXTENDED_INFO>(si.pSignExtInfo);
+                    Marshal.DestroyStructure<NativeMethods.CRYPTUI_WIZ_DIGITAL_SIGN_EXTENDED_INFO>(si.pSignExtInfo);
                     Marshal.FreeCoTaskMem(si.pSignExtInfo);
                 }
 
@@ -273,7 +268,7 @@ namespace System.Management.Automation
             }
             finally
             {
-                ClrFacade.DestroyStructure<NativeMethods.CRYPTUI_WIZ_DIGITAL_SIGN_INFO>(pSignInfo);
+                Marshal.DestroyStructure<NativeMethods.CRYPTUI_WIZ_DIGITAL_SIGN_INFO>(pSignInfo);
                 Marshal.FreeCoTaskMem(pSignInfo);
             }
 
@@ -293,17 +288,17 @@ namespace System.Management.Automation
         /// <exception cref="System.ArgumentException">
         /// Thrown if argument fileName is empty.
         /// </exception>
-        /// 
-        /// 
+        ///
+        ///
         /// <exception cref="System.ArgumentNullException">
         /// Thrown if argument fileName is null
         /// </exception>
-        /// 
-        /// 
+        ///
+        ///
         /// <exception cref="System.IO.FileNotFoundException">
         /// Thrown if the file specified by argument fileName is not found.
         /// </exception>
-        /// 
+        ///
         /// <remarks>  </remarks>
         ///
         [ArchitectureSensitive]
@@ -332,7 +327,7 @@ namespace System.Management.Automation
         {
             if (Signature.CatalogApiAvailable.HasValue && !Signature.CatalogApiAvailable.Value)
             {
-                // Signature.CatalogApiAvailable would be set to false the first time it is detected that 
+                // Signature.CatalogApiAvailable would be set to false the first time it is detected that
                 // WTGetSignatureInfo API does not exist on the platform, or if the API is not functional on the target platform.
                 // Just return from the function instead of revalidating.
                 return null;
@@ -368,10 +363,21 @@ namespace System.Management.Automation
                             DWORD error = GetErrorFromSignatureState(sigInfo.nSignatureState);
 
                             X509Certificate2 cert = null;
+
                             if (ppCertContext != IntPtr.Zero)
                             {
                                 cert = new X509Certificate2(ppCertContext);
-                                signature = new Signature(filename, error, cert);
+
+                                // Get the time stamper certificate if available
+                                TryGetProviderSigner(phStateData, out IntPtr pProvSigner, out X509Certificate2 timestamperCert);
+                                if (timestamperCert != null)
+                                {
+                                    signature = new Signature(filename, error, cert, timestamperCert);
+                                }
+                                else
+                                {
+                                    signature = new Signature(filename, error, cert);
+                                }
 
                                 switch (sigInfo.nSignatureType)
                                 {
@@ -391,7 +397,7 @@ namespace System.Management.Automation
 
                             if (!Signature.CatalogApiAvailable.HasValue)
                             {
-                                string productFile = Path.Combine(Utils.GetApplicationBase(Utils.DefaultPowerShellShellID), "Modules\\Microsoft.PowerShell.Utility\\Microsoft.PowerShell.Utility.psm1");
+                                string productFile = Path.Combine(Utils.DefaultPowerShellAppBase, "Modules\\Microsoft.PowerShell.Utility\\Microsoft.PowerShell.Utility.psm1");
                                 if (signature.Status != SignatureStatus.Valid)
                                 {
                                     if (string.Equals(filename, productFile, StringComparison.OrdinalIgnoreCase))
@@ -400,8 +406,8 @@ namespace System.Management.Automation
                                     }
                                     else
                                     {
-                                        // ProductFile has to be Catalog signed. Hence validating 
-                                        // to see if the Catalog API is functional using the ProductFile. 
+                                        // ProductFile has to be Catalog signed. Hence validating
+                                        // to see if the Catalog API is functional using the ProductFile.
                                         Signature productFileSignature = GetSignatureFromCatalog(productFile);
                                         Signature.CatalogApiAvailable = (productFileSignature != null && productFileSignature.Status == SignatureStatus.Valid);
                                     }
@@ -542,13 +548,13 @@ namespace System.Management.Automation
                     wtdBuffer);
 #pragma warning enable 56523
 
-                wtData = ClrFacade.PtrToStructure<NativeMethods.WINTRUST_DATA>(wtdBuffer);
+                wtData = Marshal.PtrToStructure<NativeMethods.WINTRUST_DATA>(wtdBuffer);
             }
             finally
             {
-                ClrFacade.DestroyStructure<Guid>(WINTRUST_ACTION_GENERIC_VERIFY_V2);
+                Marshal.DestroyStructure<Guid>(WINTRUST_ACTION_GENERIC_VERIFY_V2);
                 Marshal.FreeCoTaskMem(WINTRUST_ACTION_GENERIC_VERIFY_V2);
-                ClrFacade.DestroyStructure<NativeMethods.WINTRUST_DATA>(wtdBuffer);
+                Marshal.DestroyStructure<NativeMethods.WINTRUST_DATA>(wtdBuffer);
                 Marshal.FreeCoTaskMem(wtdBuffer);
             }
             return dwResult;
@@ -570,7 +576,7 @@ namespace System.Management.Automation
             {
                 NativeMethods.CRYPT_PROVIDER_CERT provCert =
                     (NativeMethods.CRYPT_PROVIDER_CERT)
-                    ClrFacade.PtrToStructure<NativeMethods.CRYPT_PROVIDER_CERT>(pCert);
+                    Marshal.PtrToStructure<NativeMethods.CRYPT_PROVIDER_CERT>(pCert);
                 signerCert = new X509Certificate2(provCert.pCert);
             }
 
@@ -583,63 +589,37 @@ namespace System.Management.Automation
             DWORD error,
             NativeMethods.WINTRUST_DATA wtd)
         {
-            Signature signature = null;
-            X509Certificate2 signerCert = null;
-            X509Certificate2 timestamperCert = null;
-
             s_tracer.WriteLine("GetSignatureFromWintrustData: error: {0}", error);
 
-            // The GetLastWin32Error of this is checked, but PreSharp doesn't seem to be
-            // able to see that.
-#pragma warning disable 56523
-            IntPtr pProvData =
-                NativeMethods.WTHelperProvDataFromStateData(wtd.hWVTStateData);
-#pragma warning enable 56523
-
-            if (pProvData != IntPtr.Zero)
+            Signature signature = null;
+            if (TryGetProviderSigner(wtd.hWVTStateData, out IntPtr pProvSigner, out X509Certificate2 timestamperCert))
             {
-                IntPtr pProvSigner =
-                    NativeMethods.WTHelperGetProvSignerFromChain(pProvData, 0, 0, 0);
-                if (pProvSigner != IntPtr.Zero)
+                //
+                // get cert of the signer
+                //
+                X509Certificate2 signerCert = GetCertFromChain(pProvSigner);
+
+                if (signerCert != null)
                 {
-                    //
-                    // get cert of the signer
-                    //
-                    signerCert = GetCertFromChain(pProvSigner);
-
-                    if (signerCert != null)
+                    if (timestamperCert != null)
                     {
-                        NativeMethods.CRYPT_PROVIDER_SGNR provSigner =
-                            (NativeMethods.CRYPT_PROVIDER_SGNR)
-                            ClrFacade.PtrToStructure<NativeMethods.CRYPT_PROVIDER_SGNR>(pProvSigner);
-                        if (provSigner.csCounterSigners == 1)
-                        {
-                            //
-                            // time stamper cert available
-                            //
-                            timestamperCert = GetCertFromChain(provSigner.pasCounterSigners);
-                        }
-
-                        if (timestamperCert != null)
-                        {
-                            signature = new Signature(filePath,
-                                                      error,
-                                                      signerCert,
-                                                      timestamperCert);
-                        }
-                        else
-                        {
-                            signature = new Signature(filePath,
-                                                        error,
-                                                        signerCert);
-                        }
-
-                        signature.SignatureType = SignatureType.Authenticode;
+                        signature = new Signature(filePath,
+                                                  error,
+                                                  signerCert,
+                                                  timestamperCert);
                     }
+                    else
+                    {
+                        signature = new Signature(filePath,
+                                                  error,
+                                                  signerCert);
+                    }
+
+                    signature.SignatureType = SignatureType.Authenticode;
                 }
             }
 
-            Diagnostics.Assert(((error == 0) && (signature != null)) || (error != 0), "GetSignatureFromWintrustData: general crypto failure");
+            Diagnostics.Assert(error != 0 || signature != null, "GetSignatureFromWintrustData: general crypto failure");
 
             if ((signature == null) && (error != 0))
             {
@@ -647,6 +627,44 @@ namespace System.Management.Automation
             }
 
             return signature;
+        }
+
+        [ArchitectureSensitive]
+        private static bool TryGetProviderSigner(IntPtr wvtStateData, out IntPtr pProvSigner, out X509Certificate2 timestamperCert)
+        {
+            pProvSigner = IntPtr.Zero;
+            timestamperCert = null;
+
+            // The GetLastWin32Error of this is checked, but PreSharp doesn't seem to be
+            // able to see that.
+#pragma warning disable 56523
+            IntPtr pProvData =
+                NativeMethods.WTHelperProvDataFromStateData(wvtStateData);
+#pragma warning enable 56523
+
+            if (pProvData != IntPtr.Zero)
+            {
+                pProvSigner =
+                    NativeMethods.WTHelperGetProvSignerFromChain(pProvData, 0, 0, 0);
+
+                if (pProvSigner != IntPtr.Zero)
+                {
+                    NativeMethods.CRYPT_PROVIDER_SGNR provSigner =
+                        (NativeMethods.CRYPT_PROVIDER_SGNR)
+                        Marshal.PtrToStructure<NativeMethods.CRYPT_PROVIDER_SGNR>(pProvSigner);
+                    if (provSigner.csCounterSigners == 1)
+                    {
+                        //
+                        // time stamper cert available
+                        //
+                        timestamperCert = GetCertFromChain(provSigner.pasCounterSigners);
+                    }
+
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         [ArchitectureSensitive]

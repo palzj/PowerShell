@@ -1,5 +1,5 @@
 ﻿/********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System;
@@ -8,7 +8,7 @@ using System.Collections.ObjectModel;
 namespace Microsoft.PowerShell.Commands
 {
     /// <summary>
-    /// FormObjectColletion used in HtmlWebResponseObject
+    /// FormObjectCollection used in HtmlWebResponseObject
     /// </summary>
     public class FormObjectCollection : Collection<FormObject>
     {

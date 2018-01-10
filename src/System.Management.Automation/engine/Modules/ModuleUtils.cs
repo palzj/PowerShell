@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Collections.Generic;
@@ -185,7 +185,7 @@ namespace System.Management.Automation.Internal
 
                 // when finding the default modules we stop when the first
                 // match is hit - searching in order .psd1, .psm1, .dll
-                // if a file is found but is not readable then it is an 
+                // if a file is found but is not readable then it is an
                 // error
                 break;
             }
@@ -197,7 +197,7 @@ namespace System.Management.Automation.Internal
         /// Get a list of the available module files
         /// which can be imported just by specifying a non rooted directory name of the module
         /// (Import-Module foo\bar;  but not Import-Module .\foo\bar or Import-Module .\foo\bar.psm1)
-        /// </summary>       
+        /// </summary>
         internal static IEnumerable<string> GetDefaultAvailableModuleFiles(string topDirectoryToCheck)
         {
             List<Version> versionDirectories = new List<Version>();
@@ -244,7 +244,7 @@ namespace System.Management.Automation.Internal
 
                     // when finding the default modules we stop when the first
                     // match is hit - searching in order .psd1, .psm1, .dll
-                    // if a file is found but is not readable then it is an 
+                    // if a file is found but is not readable then it is an
                     // error
                     break;
                 }
@@ -350,7 +350,7 @@ namespace System.Management.Automation.Internal
                     if (modules.Count != 0)
                     {
                         // 1. We continue to the next module path if we don't want to re-discover those imported modules
-                        // 2. If we want to re-discover the imported modules, but one or more commands from the module were made private, 
+                        // 2. If we want to re-discover the imported modules, but one or more commands from the module were made private,
                         //    then we don't do re-discovery
                         if (!rediscoverImportedModules || modules.Exists(module => module.ModuleHasPrivateMembers))
                         {
@@ -410,7 +410,7 @@ namespace System.Management.Automation.Internal
                     tempModuleInfo = new PSModuleInfo(moduleShortName, modulePath, null, null);
                     if (InitialSessionState.IsEngineModule(moduleShortName))
                     {
-                        tempModuleInfo.SetModuleBase(Utils.GetApplicationBase(Utils.DefaultPowerShellShellID));
+                        tempModuleInfo.SetModuleBase(Utils.DefaultPowerShellAppBase);
                     }
 
                     //moduleVersionRequired is bypassed by FullyQualifiedModule from calling method. This is the only place where guid will be involved.

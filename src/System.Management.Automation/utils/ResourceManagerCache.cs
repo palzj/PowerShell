@@ -1,5 +1,5 @@
 /********************************************************************++
-Copyright (c) Microsoft Corporation.  All rights reserved.
+Copyright (c) Microsoft Corporation. All rights reserved.
 --********************************************************************/
 
 using System.Reflection;
@@ -9,13 +9,13 @@ using System.Resources;
 namespace System.Management.Automation
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     internal static class ResourceManagerCache
     {
         /// <summary>
         /// Maintains a cache of ResourceManager objects. This is a dictionary that is keyed based on the path
-        /// to the default resource assembly. The value is another dictionary that is keyed based on the base 
+        /// to the default resource assembly. The value is another dictionary that is keyed based on the base
         /// name for the resource that is being retrieved. The value for this dictionary is the ResourceManager.
         /// </summary>
         private static Dictionary<string, Dictionary<string, ResourceManager>> s_resourceManagerCache =
@@ -30,19 +30,19 @@ namespace System.Management.Automation
         /// Gets the ResourceManager from the cache or gets an instance of the ResourceManager
         /// and returns it if it isn't already present in the cache.
         /// </summary>
-        /// 
+        ///
         /// <param name="assembly">
         /// The assembly to be used as the base for resource lookup.
         /// </param>
-        /// 
+        ///
         /// <param name="baseName">
         /// The base name of the resources to get the ResourceManager for.
         /// </param>
-        /// 
+        ///
         /// <returns>
         /// A ResourceManager instance for the assembly and base name that were specified.
         /// </returns>
-        /// 
+        ///
         internal static ResourceManager GetResourceManager(
             Assembly assembly,
             string baseName)
@@ -74,7 +74,7 @@ namespace System.Management.Automation
                 }
             }
 
-            // If its not in the cache, create it an add it.
+            // If it's not in the cache, create it an add it.
             if (manager == null)
             {
                 manager = InitRMWithAssembly(baseName, assembly);
@@ -129,27 +129,27 @@ namespace System.Management.Automation
         /// Gets the string from the resource manager based on the assembly,
         /// base name, resource ID, and culture specified
         /// </summary>
-        /// 
+        ///
         /// <param name="assembly">
         /// The base assembly from which to get the resources from.
         /// </param>
-        /// 
+        ///
         /// <param name="baseName">
         /// The base name of the resource to retrieve the string from.
         /// </param>
-        /// 
+        ///
         /// <param name="resourceId">
         /// Resource ID for which the localized string needs to be retrieved
         /// </param>
-        /// 
+        ///
         /// <returns>
         /// Localized String, or null if the string does not exist
         /// </returns>
-        /// 
+        ///
         /// <remarks>
         /// The current thread's UI culture is used.
         /// </remarks>
-        /// 
+        ///
         /// <throws>
         /// ArgumentException if <paramref name="baseName"/> or <paramref name="resourceId"/>
         ///     are null or empty..
@@ -177,8 +177,38 @@ namespace System.Management.Automation
                 throw PSTraceSource.NewArgumentException("resourceId");
             }
 
-            ResourceManager resourceManager = GetResourceManager(assembly, baseName);
-            string text = resourceManager.GetString(resourceId);
+            ResourceManager resourceManager = null;
+            string text = string.Empty;
+
+            // For a non-existing resource defined by {assembly,baseName,resourceId}
+            // MissingManifestResourceException is thrown only at the time when resource retrieval method
+            // such as ResourceManager.GetString or ResourceManager.GetObject is called,
+            // not when you instantiate a ResourceManager object.
+            try
+            {
+                // try with original baseName first
+                // if it fails then try with alternative resource path format
+                resourceManager = GetResourceManager(assembly, baseName);
+                text = resourceManager.GetString(resourceId);
+            }
+            catch (MissingManifestResourceException)
+            {
+                const string resourcesSubstring = ".resources.";
+                int resourcesSubstringIndex = baseName.IndexOf(resourcesSubstring);
+                string newBaseName = string.Empty;
+                if (resourcesSubstringIndex != -1)
+                {
+                    newBaseName = baseName.Substring(resourcesSubstringIndex + resourcesSubstring.Length); // e.g.  "FileSystemProviderStrings"
+                }
+                else
+                {
+                    newBaseName = string.Concat(assembly.GetName().Name, resourcesSubstring, baseName); // e.g. "System.Management.Automation.resources.FileSystemProviderStrings"
+                }
+
+                resourceManager = GetResourceManager(assembly, newBaseName);
+                text = resourceManager.GetString(resourceId);
+            }
+
             if (String.IsNullOrEmpty(text) && s_DFT_monitorFailingResourceLookup)
             {
                 Diagnostics.Assert(false,
@@ -191,9 +221,9 @@ namespace System.Management.Automation
         /// Creates a Resource manager instance based on the assembly specified.
         /// </summary>
         /// <param name="baseName">
-        /// The root name of the resources. 
-        /// For example, the root name for the resource file 
-        /// named "MyResource.en-US.resources" is "MyResource". 
+        /// The root name of the resources.
+        /// For example, the root name for the resource file
+        /// named "MyResource.en-US.resources" is "MyResource".
         /// </param>
         /// <param name="assemblyToUse">
         /// The main Assembly for the resources

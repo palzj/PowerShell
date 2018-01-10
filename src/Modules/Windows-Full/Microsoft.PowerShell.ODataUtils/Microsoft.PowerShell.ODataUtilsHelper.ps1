@@ -1,6 +1,6 @@
-﻿# Base class definitions used by the actual Adapter modules
+# Base class definitions used by the actual Adapter modules
 $global:BaseClassDefinitions = @"
-using System; 
+using System;
 
 namespace ODataUtils
 {
@@ -28,7 +28,7 @@ namespace ODataUtils
 
     public class EntityTypeBase
     {
-        public String Namespace;        
+        public String Namespace;
         public String Name;
         public TypeProperty[] EntityProperties;
         public bool IsEntity;
@@ -47,7 +47,7 @@ namespace ODataUtils
         public String Multiplicity2;
         public String NavPropertyName2;
     }
-    
+
     public class EntitySet
     {
         public String Namespace;
@@ -136,7 +136,7 @@ namespace ODataUtils
         public NavigationPropertyV4[] NavigationProperties;
         public String BaseTypeStr;
     }
-       
+
     public class SingletonType
     {
         public String Namespace;
@@ -144,7 +144,7 @@ namespace ODataUtils
         public String Name;
         public String Type;
         public NavigationPropertyBinding[] NavigationPropertyBindings;
-    } 
+    }
 
     public class EntitySetV4
     {
@@ -217,9 +217,9 @@ namespace ODataUtils
         public string Alias;
         public Reference[] References;
         public string DefaultEntityContainerName;
-        public EntitySetV4[] EntitySets;        
+        public EntitySetV4[] EntitySets;
         public EntityTypeV4[] EntityTypes;
-        public SingletonType[] SingletonTypes;        
+        public SingletonType[] SingletonTypes;
         public EntityTypeV4[] ComplexTypes;
         public EntityTypeV4[] TypeDefinitions;
         public EnumType[] EnumTypes;
@@ -248,11 +248,11 @@ namespace ODataUtils
     {
         public NavigationProperty[] NavigationProperties;
     }
-    
+
     public class Metadata : MetadataBase
     {
         public String DefaultEntityContainerName;
-        public EntitySet[] EntitySets;        
+        public EntitySet[] EntitySets;
         public EntityType[] EntityTypes;
         public EntityType[] ComplexTypes;
         public AssociationSet[] Associations;
@@ -262,10 +262,10 @@ namespace ODataUtils
 "@
 
 #########################################################
-# GetMetaData is a helper function used to fetch metadata 
+# GetMetaData is a helper function used to fetch metadata
 # from the specified file or web URL.
-######################################################### 
-function GetMetaData 
+#########################################################
+function GetMetaData
 {
     param
     (
@@ -276,17 +276,17 @@ function GetMetaData
     )
 
     # $metaDataUri is already validated at the cmdlet layer.
-    if($callerPSCmdlet -eq $null) { throw ($LocalizedData.ArguementNullError -f "PSCmdlet", "GetMetaData") }
+    if($null -eq $callerPSCmdletl) { throw ($LocalizedData.ArguementNullError -f "PSCmdlet", "GetMetaData") }
     Write-Verbose ($LocalizedData.VerboseReadingMetadata -f $metaDataUri)
 
     try
     {
         $uri = [System.Uri]::new($metadataUri)
 
-        # By default, proxy generation is supported on sercured Uri (i.e., https).
+        # By default, proxy generation is supported on secured Uri (i.e., https).
         # However if the user trusts the unsecure http uri, then they can override
         # the security check by specifying -AllowSecureConnection parameter during
-        # proxy generation. 
+        # proxy generation.
         if($uri.Scheme -eq "http" -and !$AllowUnsecureConnection.IsPresent)
         {
             $errorMessage = ($LocalizedData.AllowUnsecureConnectionMessage -f $callerPSCmdlet.MyInvocation.MyCommand.Name, $uri, "MetaDataUri")
@@ -305,7 +305,7 @@ function GetMetaData
 
     if($uri.IsFile)
     {
-        if ($credential -ne $null)
+        if ($null -ne $credential)
         {
             $fileExists = Test-Path -Path $metaDataUri -PathType Leaf -Credential $credential -ErrorAction Stop
         }
@@ -331,12 +331,12 @@ function GetMetaData
         {
             $cmdParams = @{'Uri'= $metaDataUri ; 'UseBasicParsing'=$true; 'ErrorAction'= 'Stop'}
 
-            if ($credential -ne $null)
+            if ($null -ne $credential)
             {
                 $cmdParams.Add('Credential', $credential)
             }
 
-            if ($headers -ne $null)
+            if ($null -ne $headers)
             {
                 $cmdParams.Add('Headers', $headers)
             }
@@ -351,13 +351,13 @@ function GetMetaData
             $callerPSCmdlet.ThrowTerminatingError($errorRecord)
         }
 
-        if($webResponse -ne $null)
+        if($null -ne $webResponse)
         {
             if ($webResponse.StatusCode -eq 200)
             {
                 $metaData = $webResponse.Content
 
-                if ($metadata -eq $null)
+                if ($null -eq $metadata)
                 {
                     $errorMessage = ($LocalizedData.EmptyMetadata -f $MetadataUri)
                     $errorRecord = CreateErrorRecordHelper "ODataEndpointProxyMetadataIsEmpty" $errorMessage ([System.Management.Automation.ErrorCategory]::InvalidArgument) $null $MetadataUri
@@ -373,7 +373,7 @@ function GetMetaData
         }
     }
 
-    if($metaData -ne $null)
+    if($null -ne $metaData)
     {
         try
         {
@@ -392,11 +392,11 @@ function GetMetaData
 }
 
 #########################################################
-# VerifyMetadataHelper is a helper function used to 
-# validate if Error/Warning message has to be displayed 
-# during command collision. 
+# VerifyMetadataHelper is a helper function used to
+# validate if Error/Warning message has to be displayed
+# during command collision.
 #########################################################
-function VerifyMetadataHelper 
+function VerifyMetadataHelper
 {
     param
     (
@@ -409,8 +409,8 @@ function VerifyMetadataHelper
         [System.Management.Automation.PSCmdlet] $callerPSCmdlet
     )
 
-    if($localizedDataErrorString -eq $null) { throw ($LocalizedData.ArguementNullError -f "localizedDataErrorString", "VerifyMetadataHelper") }
-    if($localizedDataWarningString -eq $null) { throw ($LocalizedData.ArguementNullError -f "localizedDataWarningString", "VerifyMetadataHelper") }
+    if($null -eq $localizedDataErrorString) { throw ($LocalizedData.ArguementNullError -f "localizedDataErrorString", "VerifyMetadataHelper") }
+    if($null -eq $localizedDataWarningString) { throw ($LocalizedData.ArguementNullError -f "localizedDataWarningString", "VerifyMetadataHelper") }
 
     if(!$allowClobber)
     {
@@ -421,19 +421,19 @@ function VerifyMetadataHelper
         $callerPSCmdlet.WriteError($errorRecord)
     }
     else
-    {                   
+    {
         $warningMessage = ($localizedDataWarningString -f $entitySetName, $currentCommandName)
         $callerPSCmdlet.WriteWarning($warningMessage)
     }
 }
 
 #########################################################
-# CreateErrorRecordHelper is a helper function used to 
+# CreateErrorRecordHelper is a helper function used to
 # create an error record.
 #########################################################
-function CreateErrorRecordHelper 
+function CreateErrorRecordHelper
 {
-    param 
+    param
     (
         [string] $errorId,
         [string] $errorMessage,
@@ -442,7 +442,7 @@ function CreateErrorRecordHelper
         [object] $targetObject
     )
 
-    if($exception -eq $null)
+    if($null -eq $exception)
     {
         $exception = New-Object System.IO.IOException $errorMessage
     }
@@ -452,12 +452,12 @@ function CreateErrorRecordHelper
 }
 
 #########################################################
-# ProgressBarHelper is a helper function used to 
-# used to display progress message. 
+# ProgressBarHelper is a helper function used to
+# used to display progress message.
 #########################################################
-function ProgressBarHelper 
+function ProgressBarHelper
 {
-    param 
+    param
     (
         [string] $cmdletName,
         [string] $status,
@@ -467,25 +467,25 @@ function ProgressBarHelper
         [int]    $currentEntryCount
     )
 
-    if($cmdletName -eq $null) { throw ($LocalizedData.ArguementNullError -f "CmdletName", "ProgressBarHelper") }
-    if($status -eq $null) { throw ($LocalizedData.ArguementNullError -f "Status", "ProgressBarHelper") }
+    if($null -eq $cmdletName) { throw ($LocalizedData.ArguementNullError -f "CmdletName", "ProgressBarHelper") }
+    if($null -eq $status) { throw ($LocalizedData.ArguementNullError -f "Status", "ProgressBarHelper") }
 
-    if($currentEntryCount -gt 0 -and 
-       $totalNumberofEntries -gt 0 -and 
-       $previousSegmentWeight -ge 0 -and 
+    if($currentEntryCount -gt 0 -and
+       $totalNumberofEntries -gt 0 -and
+       $previousSegmentWeight -ge 0 -and
        $currentSegmentWeight -gt 0)
     {
         $entryDefaultWeight = $currentSegmentWeight/[double]$totalNumberofEntries
         $percentComplete = $previousSegmentWeight + ($entryDefaultWeight * $currentEntryCount)
-        Write-Progress -Activity $cmdletName -Status $status -PercentComplete $percentComplete 
+        Write-Progress -Activity $cmdletName -Status $status -PercentComplete $percentComplete
     }
 }
 
 #########################################################
-# Convert-ODataTypeToCLRType is a helper function used to 
+# Convert-ODataTypeToCLRType is a helper function used to
 # Convert OData type to its CLR equivalent.
 #########################################################
-function Convert-ODataTypeToCLRType 
+function Convert-ODataTypeToCLRType
 {
     param
     (
@@ -493,9 +493,9 @@ function Convert-ODataTypeToCLRType
         [Hashtable] $complexTypeMapping
     )
 
-    if($typeName -eq $null) { throw ($LocalizedData.ArguementNullError -f "TypeName", "Convert-ODataTypeToCLRType ") }
+    if($null -eq $typeName) { throw ($LocalizedData.ArguementNullError -f "TypeName", "Convert-ODataTypeToCLRType ") }
 
-    switch ($typeName) 
+    switch ($typeName)
     {
         "Edm.Binary" {"Byte[]"}
         "Edm.Boolean" {"Boolean"}
@@ -513,10 +513,10 @@ function Convert-ODataTypeToCLRType
         "Edm.PropertyPath"  {"String"}
         "switch" {"switch"}
         "Edm.DateTimeOffset" {"DateTimeOffset"}
-        default 
+        default
         {
-            if($complexTypeMapping -ne $null -and 
-               $complexTypeMapping.Count -gt 0 -and 
+            if($null -ne $complexTypeMapping -and
+               $complexTypeMapping.Count -gt 0 -and
                $complexTypeMapping.ContainsKey($typeName))
             {
                 $typeName
@@ -539,11 +539,11 @@ function Convert-ODataTypeToCLRType
 }
 
 #########################################################
-# SaveCDXMLHeader is a helper function used 
-# to save CDXML headers common to all 
+# SaveCDXMLHeader is a helper function used
+# to save CDXML headers common to all
 # PSODataUtils modules.
 #########################################################
-function SaveCDXMLHeader 
+function SaveCDXMLHeader
 {
     param
     (
@@ -555,8 +555,8 @@ function SaveCDXMLHeader
     )
 
     # $uri & $cmdletAdapter are already validated at the cmdlet layer.
-    if($xmlWriter -eq $null) { throw ($LocalizedData.ArguementNullError -f "xmlWriter", "SaveCDXMLHeader") }
-    if($defaultNoun -eq $null) { throw ($LocalizedData.ArguementNullError -f "DefaultNoun", "SaveCDXMLHeader") }
+    if($null -eq $xmlWriter) { throw ($LocalizedData.ArguementNullError -f "xmlWriter", "SaveCDXMLHeader") }
+    if($null -eq $defaultNoun) { throw ($LocalizedData.ArguementNullError -f "DefaultNoun", "SaveCDXMLHeader") }
 
     if ($className -eq 'ServiceActions' -Or $cmdletAdapter -eq "NetworkControllerAdapter")
     {
@@ -591,7 +591,7 @@ function SaveCDXMLHeader
         $xmlWriter.WriteStartElement('Class')
         $xmlWriter.WriteAttributeString('ClassName', $fullName)
         $xmlWriter.WriteAttributeString('ClassVersion', '1.0.0')
-        
+
         $DotNetAdapter = 'Microsoft.PowerShell.Cmdletization.OData.ODataCmdletAdapter'
 
         if ($CmdletAdapter -eq "NetworkControllerAdapter") {
@@ -600,7 +600,7 @@ function SaveCDXMLHeader
         elseif ($CmdletAdapter -eq "ODataV4Adapter") {
             $DotNetAdapter = 'Microsoft.PowerShell.Cmdletization.OData.ODataV4CmdletAdapter'
         }
-        
+
         $xmlWriter.WriteAttributeString('CmdletAdapter', $DotNetAdapter + ', Microsoft.PowerShell.Cmdletization.OData, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35')
 
         $xmlWriter.WriteElementString('Version', '1.0')
@@ -610,18 +610,18 @@ function SaveCDXMLHeader
 }
 
 #########################################################
-# SaveCDXMLFooter is a helper function used 
-# to save CDXML closing attributes corresponding 
+# SaveCDXMLFooter is a helper function used
+# to save CDXML closing attributes corresponding
 # to SaveCDXMLHeader function.
 #########################################################
-function SaveCDXMLFooter 
+function SaveCDXMLFooter
 {
     param
     (
         [System.Xml.XmlWriter] $xmlWriter
     )
 
-    if($xmlWriter -eq $null) { throw ($LocalizedData.ArguementNullError -f "xmlWriter", "SaveCDXMLFooter") }
+    if($null -eq $xmlWriter) { throw ($LocalizedData.ArguementNullError -f "xmlWriter", "SaveCDXMLFooter") }
 
     $xmlWriter.WriteEndElement()
     $xmlWriter.WriteEndElement()
@@ -632,13 +632,13 @@ function SaveCDXMLFooter
 }
 
 #########################################################
-# AddParametersNode is a helper function used 
-# to add parameters to the generated proxy cmdlet, 
+# AddParametersNode is a helper function used
+# to add parameters to the generated proxy cmdlet,
 # based on mandatoryProperties and otherProperties.
-# PrefixForKeys is used by associations to append a 
+# PrefixForKeys is used by associations to append a
 # prefix to PowerShell parameter name.
 #########################################################
-function AddParametersNode 
+function AddParametersNode
 {
     param
     (
@@ -653,10 +653,10 @@ function AddParametersNode
         [Hashtable] $complexTypeMapping
     )
 
-    if($xmlWriter -eq $null) { throw ($LocalizedData.ArguementNullError -f "xmlWriter", "AddParametersNode") }
+    if($null -eq $xmlWriter) { throw ($LocalizedData.ArguementNullError -f "xmlWriter", "AddParametersNode") }
 
-    if(($keyProperties.Length -gt 0) -or 
-       ($mandatoryProperties.Length -gt 0) -or 
+    if(($keyProperties.Length -gt 0) -or
+       ($mandatoryProperties.Length -gt 0) -or
        ($otherProperties.Length -gt 0) -or
        ($addForceParameter))
     {
@@ -667,17 +667,17 @@ function AddParametersNode
 
         $pos = 0
 
-        if ($keyProperties -ne $null)
+        if ($null -ne $keyProperties)
         {
             $pos = AddParametersCDXML $xmlWriter $keyProperties $pos $true $prefixForKeys ":Key" $complexTypeMapping
         }
 
-        if ($mandatoryProperties -ne $null)
+        if ($null -ne $mandatoryProperties)
         {
             $pos = AddParametersCDXML $xmlWriter $mandatoryProperties $pos $true $null $null $complexTypeMapping
         }
 
-        if ($otherProperties -ne $null)
+        if ($null -ne $otherProperties)
         {
             $pos = AddParametersCDXML $xmlWriter $otherProperties $pos $false $null $null $complexTypeMapping
         }
@@ -701,13 +701,13 @@ function AddParametersNode
 }
 
 #########################################################
-# AddParametersCDXML is a helper function used 
+# AddParametersCDXML is a helper function used
 # to add Parameter node to CDXML based on properties.
-# Prefix is appended to PS parameter names, used for 
-# associations. Suffix is appended to all parameter 
+# Prefix is appended to PS parameter names, used for
+# associations. Suffix is appended to all parameter
 # names, for ex. to differentiate keys. returns new $pos
 #########################################################
-function AddParametersCDXML 
+function AddParametersCDXML
 {
     param
     (
@@ -719,14 +719,14 @@ function AddParametersCDXML
         [bool] $isMandatory,
         [string] $prefix,
         [string] $suffix,
-        [Hashtable] $compleTypeMapping
+        [Hashtable] $complexTypeMapping
     )
 
-    $properties | ? { $_ -ne $null } | % {
+    $properties | Where-Object { $null -ne $_ } | ForEach-Object {
         $xmlWriter.WriteStartElement('Parameter')
         $xmlWriter.WriteAttributeString('ParameterName', $_.Name + $suffix)
             $xmlWriter.WriteStartElement('Type')
-            $PSTypeName = Convert-ODataTypeToCLRType $_.TypeName $compleTypeMapping
+            $PSTypeName = Convert-ODataTypeToCLRType $_.TypeName $complexTypeMapping
             $xmlWriter.WriteAttributeString('PSType', $PSTypeName)
             $xmlWriter.WriteEndElement()
 
@@ -748,11 +748,11 @@ function AddParametersCDXML
 }
 
 #########################################################
-# GenerateSetProxyCmdlet is a helper function used 
+# GenerateSetProxyCmdlet is a helper function used
 # to generate Set-* proxy cmdlet. The proxy cmdlet is
-# generated in the CDXML compliant format. 
+# generated in the CDXML compliant format.
 #########################################################
-function GenerateSetProxyCmdlet 
+function GenerateSetProxyCmdlet
 {
     param
     (
@@ -763,7 +763,7 @@ function GenerateSetProxyCmdlet
     )
 
     # $cmdletAdapter is already validated at the cmdlet layer.
-    if($xmlWriter -eq $null) { throw ($LocalizedData.ArguementNullError -f "xmlWriter", "GenerateSetProxyCmdlet") }
+    if($null -eq $xmlWriter) { throw ($LocalizedData.ArguementNullError -f "xmlWriter", "GenerateSetProxyCmdlet") }
 
     $xmlWriter.WriteStartElement('Cmdlet')
         $xmlWriter.WriteStartElement('CmdletMetadata')

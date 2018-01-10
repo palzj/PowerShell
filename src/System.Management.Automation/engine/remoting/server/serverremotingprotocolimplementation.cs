@@ -1,5 +1,5 @@
 /********************************************************************++
- * Copyright (c) Microsoft Corporation.  All rights reserved.
+ * Copyright (c) Microsoft Corporation. All rights reserved.
  * --********************************************************************/
 
 using System.Management.Automation.Remoting.Server;
@@ -11,7 +11,7 @@ namespace System.Management.Automation.Remoting
     /// <summary>
     /// This class is an implementation of the abstract class ServerRemoteSessionDataStructureHandler.
     /// </summary>
-    internal class ServerRemoteSessionDSHandlerlImpl : ServerRemoteSessionDataStructureHandler
+    internal class ServerRemoteSessionDSHandlerImpl : ServerRemoteSessionDataStructureHandler
     {
         private AbstractServerSessionTransportManager _transportManager;
         private ServerRemoteSessionDSHandlerStateMachine _stateMachine;
@@ -28,13 +28,13 @@ namespace System.Management.Automation.Remoting
         #region Constructors
 
         /// <summary>
-        /// Constructs a ServerRemoteSession handler using the supplied transport manager. The 
+        /// Constructs a ServerRemoteSession handler using the supplied transport manager. The
         /// supplied transport manager will be used to send and receive data from the remote
         /// client.
         /// </summary>
         /// <param name="session"></param>
         /// <param name="transportManager"></param>
-        internal ServerRemoteSessionDSHandlerlImpl(ServerRemoteSession session,
+        internal ServerRemoteSessionDSHandlerImpl(ServerRemoteSession session,
             AbstractServerSessionTransportManager transportManager)
         {
             Dbg.Assert(null != session, "session cannot be null.");
@@ -60,7 +60,7 @@ namespace System.Management.Automation.Remoting
         }
 
         /// <summary>
-        /// This method sends the server side capability negotitation packet to the client. 
+        /// This method sends the server side capability negotiation packet to the client.
         /// </summary>
         internal override void SendNegotiationAsync()
         {
@@ -115,7 +115,7 @@ namespace System.Management.Automation.Remoting
         /// Raise the public key received event
         /// </summary>
         /// <param name="receivedData">received data</param>
-        /// <remarks>This method is a hook to be called 
+        /// <remarks>This method is a hook to be called
         /// from the transport manager</remarks>
         internal override void RaiseKeyExchangeMessageReceived(RemoteDataObject<PSObject> receivedData)
         {
@@ -166,7 +166,7 @@ namespace System.Management.Automation.Remoting
         /// <param name="dataArg">
         /// The received client data.
         /// </param>
-        /// 
+        ///
         /// <exception cref="ArgumentNullException">
         /// If the parameter is null.
         /// </exception>
@@ -211,7 +211,7 @@ namespace System.Management.Automation.Remoting
                         // this will happen if expected properties are not
                         // received for session capability
                         throw new PSRemotingDataStructureException(RemotingErrorIdStrings.ServerNotFoundCapabilityProperties,
-                            dse.Message, PSVersionInfo.BuildVersion, RemotingConstants.ProtocolVersion);
+                            dse.Message, PSVersionInfo.GitCommitId, RemotingConstants.ProtocolVersion);
                     }
 
                     RemoteSessionStateMachineEventArgs capabilityArg = new RemoteSessionStateMachineEventArgs(RemoteSessionEvent.NegotiationReceived);
